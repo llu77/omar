@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import {
   Card,
   CardContent,
@@ -20,10 +20,11 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 export default function ReportPage({
-  params,
+  params: paramsPromise,
 }: {
-  params: { fileNumber: string };
+  params: Promise<{ fileNumber: string }>;
 }) {
+  const params = use(paramsPromise);
   const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
   const [consideration, setConsideration] = useState<ConsiderPatientInfoOutput | null>(null);
   const [rehabPlan, setRehabPlan] = useState<GenerateRehabPlanOutput | null>(null);
