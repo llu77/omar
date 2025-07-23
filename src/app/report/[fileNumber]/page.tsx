@@ -1,493 +1,301 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useWatch } from "react-hook-form";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import type { PatientDataForAI } from "@/types";
-import { useToast } from "@/hooks/use-toast";
+import { useParams, useRouter } from "next/navigation";
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+
+import { generateEnhancedRehabPlan } from "@/ai/flows/generate-enhanced-rehab-plan";
+import type { GenerateEnhancedRehabPlanOutput } from "@/ai/flows/generate-enhanced-rehab-plan";
+import type { PatientDataForAI } from "@/types";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Logo } from "@/components/logo";
-import { Progress } from "@/components/ui/progress";
-import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { Logo } from "@/components/logo";
 
-const formSchema = z.object({
-  name: z.string().min(2, "الاسم مطلوب (حرفين على الأقل)"),
-  age: z.string().refine((val) => !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0 && parseInt(val, 10) < 150, {
-    message: "يجب أن يكون العمر رقمًا صحيحًا بين 1 و 150",
-  }),
-  gender: z.enum(["male", "female"], {
-    required_error: "الجنس مطلوب",
-  }),
-  job: z.string().min(2, "المهنة مطلوبة"),
-  symptoms: z.string().min(10, "يجب وصف الأعراض بشكل كافٍ (10 أحرف على الأقل)"),
-  neck: z.enum(["yes", "partially", "no"], { required_error: "الحقل مطلوب" }),
-  trunk: z.enum(["yes", "partially", "no"], { required_error: "الحقل مطلوب" }),
-  standing: z.enum(["yes", "with assistance", "no"], {
-    required_error: "الحقل مطلوب",
-  }),
-  walking: z.enum(["yes", "with assistance", "no"], {
-    required_error: "الحقل مطلوب",
-  }),
-  medications: z.enum(["yes", "no"], { required_error: "الحقل مطلوب" }),
-  medications_details: z.string().optional(),
-  fractures: z.enum(["yes", "no"], { required_error: "الحقل مطلوب" }),
-  fractures_details: z.string().optional(),
-}).refine(data => data.medications !== 'yes' || (data.medications_details && data.medications_details.trim() !== ''), {
-  message: 'يرجى تقديم تفاصيل عن الأدوية',
-  path: ['medications_details'],
-}).refine(data => data.fractures !== 'yes' || (data.fractures_details && data.fractures_details.trim() !== ''), {
-  message: 'يرجى تقديم تفاصيل عن الكسور',
-  path: ['fractures_details'],
-});
+type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput;
 
-type FormValues = z.infer<typeof formSchema>;
+type PageState = 'loading' | 'generating' | 'displaying' | 'error';
 
-const steps = [
-  { id: 1, title: "المعلومات الأساسية", fields: ['name', 'age', 'gender', 'job', 'symptoms'] },
-  { id: 2, title: "التقييم الحركي", fields: ['neck', 'trunk', 'standing', 'walking'] },
-  { id: 3, title: "التاريخ الطبي", fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
-];
-
-export default function AssessmentPage() {
+export default function ReportPage() {
+  const { fileNumber } = useParams() as { fileNumber: string };
   const router = useRouter();
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
-  const [fileNumber, setFileNumber] = useState("");
-  const [user, loading] = useAuthState(auth);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formProgress, setFormProgress] = useState(0);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [user, authLoading] = useAuthState(auth);
+
+  const [pageState, setPageState] = useState<PageState>('loading');
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSaving, startSavingTransition] = useTransition();
+  const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (authLoading) return;
+    if (!user) {
       router.push('/login');
+      return;
     }
-  }, [user, loading, router]);
+    loadReport();
+  }, [user, authLoading, fileNumber, router]);
 
-  useEffect(() => {
-    const year = new Date().getFullYear();
-    const randomId = Math.floor(10000 + Math.random() * 90000);
-    setFileNumber(`WSL-${year}-${randomId}`);
-  }, []);
+  const loadReport = async () => {
+    if (!user) return;
+    setPageState('loading');
+    setErrorMessage(null);
+    setIsSaved(false);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      age: "",
-      gender: undefined,
-      job: "",
-      symptoms: "",
-      medications: undefined,
-      medications_details: "",
-      fractures: undefined,
-      fractures_details: "",
-      neck: undefined,
-      trunk: undefined,
-      standing: undefined,
-      walking: undefined,
-    },
-    mode: "onTouched",
-  });
+    try {
+      // 1. Try to fetch from Firestore first
+      const reportDocRef = doc(db, "reports", fileNumber);
+      const reportDoc = await getDoc(reportDocRef);
 
-  const watchedFields = useWatch({ control: form.control });
+      if (reportDoc.exists()) {
+        const data = reportDoc.data() as ReportData;
+        setReportData(data);
+        setIsSaved(true);
+        setPageState('displaying');
+        toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المحفوظ من السحابة." });
+        return;
+      }
+      
+      // 2. If not in Firestore, check localStorage for patient data
+      const localDataString = localStorage.getItem(`report-${fileNumber}`);
+      if (!localDataString) {
+        throw new Error("لم يتم العثور على بيانات التقييم. يرجى البدء من جديد.");
+      }
+      const patientData: PatientDataForAI = JSON.parse(localDataString);
+      
+      // 3. Generate the report using AI
+      setPageState('generating');
+      const aiInput = {
+        job: patientData.job,
+        symptoms: patientData.symptoms,
+        age: patientData.age,
+        gender: patientData.gender,
+        neck: patientData.neck,
+        trunk: patientData.trunk,
+        standing: patientData.standing,
+        walking: patientData.walking,
+        medications: patientData.medications,
+        fractures: patientData.fractures,
+      };
 
-  useEffect(() => {
-    const totalFields = Object.keys(form.getValues()).length - 2;
-    const filledFields = Object.values(watchedFields).filter(value => value !== "" && value !== undefined).length;
-    setFormProgress((filledFields / totalFields) * 100);
-  }, [watchedFields, form]);
+      const aiOutput = await generateEnhancedRehabPlan(aiInput);
+      
+      setReportData({ ...patientData, ...aiOutput });
+      setPageState('displaying');
 
-  const nextStep = async () => {
-    const fieldsToValidate = steps[currentStep - 1].fields;
-    const isValid = await form.trigger(fieldsToValidate as any);
-    if (isValid) {
-      setCurrentStep(prev => prev + 1);
-      setSubmitError(null);
+    } catch (error: any) {
+      console.error("Error loading or generating report:", error);
+      let message = "حدث خطأ غير متوقع.";
+      if (error.message.includes("not found")) {
+        message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
+      } else if (error.message.includes("AI")) {
+        message = `فشل توليد التقرير بالذكاء الاصطناعي: ${error.message}`;
+      }
+      setErrorMessage(message);
+      setPageState('error');
     }
   };
+  
+  const handleSaveToCloud = () => {
+    if (!reportData || !user) {
+      toast({ variant: "destructive", title: "خطأ", description: "لا توجد بيانات لحفظها." });
+      return;
+    }
 
-  const prevStep = () => {
-    setCurrentStep(prev => prev - 1);
-    setSubmitError(null);
-  };
-
-  function onSubmit(values: FormValues) {
-    setSubmitError(null);
-    
-    startTransition(async () => {
+    startSavingTransition(async () => {
       try {
-        // التحقق من جميع الحقول المطلوبة
-        if (!values.job || !values.symptoms) {
-          setSubmitError("يرجى التأكد من ملء جميع الحقول المطلوبة");
-          return;
-        }
-
-        const patientData: PatientDataForAI = {
-          fileNumber,
-          name: values.name.trim(),
-          age: parseInt(values.age, 10),
-          gender: values.gender,
-          job: values.job.trim(),
-          symptoms: values.symptoms.trim(),
-          neck: values.neck,
-          trunk: values.trunk,
-          standing: values.standing,
-          walking: values.walking,
-          medications: values.medications === "yes" 
-            ? `نعم - ${values.medications_details?.trim() || 'لم يتم تحديد التفاصيل'}` 
-            : "لا",
-          fractures: values.fractures === "yes" 
-            ? `نعم - ${values.fractures_details?.trim() || 'لم يتم تحديد التفاصيل'}` 
-            : "لا",
-        };
-
-        // حفظ في localStorage مع timestamp
-        const dataToSave = {
-          ...patientData,
-          createdAt: new Date().toISOString(),
-        };
-        
-        localStorage.setItem(`report-${fileNumber}`, JSON.stringify(dataToSave));
-        
-        toast({
-          title: "تم حفظ البيانات بنجاح ✓",
-          description: `جاري توجيهك لصفحة التقرير للملف رقم: ${fileNumber}`,
+        const reportDocRef = doc(db, "reports", reportData.fileNumber);
+        await setDoc(reportDocRef, {
+          ...reportData,
+          userId: user.uid,
+          createdAt: Timestamp.now(),
         });
-        
-        router.push(`/report/${fileNumber}`);
-      } catch (error: any) {
-        console.error('Form submission error:', error);
-        setSubmitError(error.message || "حدث خطأ في حفظ البيانات");
+        setIsSaved(true);
+        toast({
+          title: "تم الحفظ بنجاح",
+          description: "تم حفظ التقرير في حسابك السحابي.",
+        });
+      } catch (error) {
+        console.error("Error saving to cloud:", error);
         toast({
           variant: "destructive",
-          title: "خطأ في الحفظ",
-          description: "لم نتمكن من حفظ بيانات النموذج. يرجى المحاولة مرة أخرى.",
+          title: "فشل الحفظ",
+          description: "لم نتمكن من حفظ التقرير في السحابة. تحقق من اتصالك بالإنترنت.",
         });
       }
     });
-  }
-
-  const radioOptions = {
-    control: [
-      { value: "yes", label: "تحكم كامل" },
-      { value: "partially", label: "تحكم جزئي" },
-      { value: "no", label: "لا يوجد تحكم" },
-    ],
-    assistance: [
-      { value: "yes", label: "نعم، بشكل مستقل" },
-      { value: "with assistance", label: "نعم، بمساعدة" },
-      { value: "no", label: "لا" },
-    ],
-    yesNo: [
-      { value: "yes", label: "نعم" },
-      { value: "no", label: "لا" },
-    ],
   };
 
-  const renderRadioGroup = (name: keyof FormValues, options: {value: string; label: string}[]) => (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormControl>
-            <RadioGroup
-              onValueChange={field.onChange}
-              value={field.value}
-              className="flex flex-wrap gap-4"
-            >
-              {options.map((option) => (
-                <FormItem key={option.value} className="flex items-center space-x-2 space-x-reverse">
-                  <FormControl>
-                    <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
-                  </FormControl>
-                  <FormLabel 
-                    htmlFor={`${name}-${option.value}`} 
-                    className="font-normal cursor-pointer"
-                  >
-                    {option.label}
-                  </FormLabel>
-                </FormItem>
-              ))}
-            </RadioGroup>
-          </FormControl>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-  
-  if (loading || !user) {
-    return (
-      <div className="w-full mx-auto max-w-4xl space-y-8">
-        <div className="text-center mb-10">
-          <Skeleton className="h-10 w-64 mx-auto" />
-          <Skeleton className="h-6 w-96 mx-auto mt-4" />
-        </div>
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full mx-auto max-w-4xl">
-      <div className="text-center mb-10">
-        <div className="flex justify-center mb-6">
-          <Logo className="w-24 h-24" showText={false} />
-        </div>
-        <h1 className="text-4xl font-bold font-headline flex items-center justify-center gap-3">
-          <div className="h-8 w-8 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
-          نموذج تقييم المريض
-        </h1>
-        <p className="text-muted-foreground mt-2 text-lg">
-          نظام WASL AI لتوليد خطط تأهيلية مخصصة
-        </p>
-      </div>
-
-      <div className="mb-8 p-4 bg-secondary/50 rounded-lg">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">الخطوة الحالية: <span className="font-bold text-primary">{steps[currentStep - 1].title}</span></span>
-          <span className="text-sm font-medium">{Math.round(formProgress)}%</span>
-        </div>
-        <Progress value={formProgress} className="h-2" />
-      </div>
-
-      {submitError && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>خطأ</AlertTitle>
-          <AlertDescription>{submitError}</AlertDescription>
-        </Alert>
-      )}
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          
-          {currentStep === 1 && (
-            <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary">
-                  <div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m22 11-2.5 2.5L17 11"/></svg></div>
-                  المعلومات الأساسية والشخصية
-                </CardTitle>
-                <CardDescription>
-                  يرجى إدخال البيانات الأساسية للمريض بدقة. هذه المعلومات هي حجر الأساس للخطة العلاجية.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField control={form.control} name="name" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>اسم المريض <span className="text-red-500">*</span></FormLabel>
-                      <FormControl><Input placeholder="الاسم الكامل" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
-                  <FormField control={form.control} name="age" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>العمر <span className="text-red-500">*</span></FormLabel>
-                      <FormControl><Input type="number" placeholder="بالسنوات" min="1" max="150" {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
-                  <FormField control={form.control} name="gender" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>الجنس <span className="text-red-500">*</span></FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="اختر الجنس" /></SelectTrigger></FormControl>
-                        <SelectContent>
-                          <SelectItem value="male">ذكر</SelectItem>
-                          <SelectItem value="female">أنثى</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField control={form.control} name="job" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>مهنة المريض <span className="text-red-500">*</span></FormLabel>
-                      <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
-                      <FormDescription>المهنة مهمة لتخصيص التمارين الوظيفية.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}/>
-                  <div>
-                    <FormLabel>رقم الملف</FormLabel>
-                    <Input disabled value={fileNumber} className="mt-2 bg-muted/50 border-dashed font-mono" />
-                    <FormDescription>يتم توليده تلقائياً ولا يمكن تغييره.</FormDescription>
-                  </div>
-                </div>
-                <FormField control={form.control} name="symptoms" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>وصف الأعراض الرئيسية <span className="text-red-500">*</span></FormLabel>
-                     <FormControl><Textarea placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." {...field} rows={4} /></FormControl>
-                     <FormDescription>كلما كان الوصف أكثر تفصيلاً، كانت الخطة أدق.</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep === 2 && (
-             <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary">
-                  <div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-                  تقييم الحالة الوظيفية والحركية
-                </CardTitle>
-                <CardDescription>
-                  تقييم القدرات الحركية الحالية للمريض يساعد في تحديد نقطة البداية المناسبة.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                  <FormField control={form.control} name="neck" render={() => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2c-1.8 0-3.5 1.4-4.3 3.4A6.1 6.1 0 0 0 4.1 8c-2.2 2-2.8 5.4-.6 7.6l.6.6c2.2 2.2 5.8 2.2 7.9 0l.6-.6c2.2-2.2 1.6-5.6-.6-7.6-.4-1-.4-2.1.2-3.1 1.7-3 0-6.4-3.5-6.4Z"/><path d="M14.5 2c1.8 0 3.5 1.4 4.3 3.4A6.1 6.1 0 0 1 19.9 8c2.2 2 2.8 5.4.6 7.6l-.6.6c-2.2 2.2-5.8 2.2-7.9 0l-.6-.6c-2.2-2.2-1.6-5.6.6-7.6.4-1 .4-2.1-.2-3.1-1.7-3 0-6.4 3.5-6.4Z"/></svg></div>التحكم بالرقبة <span className="text-red-500">*</span></FormLabel>
-                      {renderRadioGroup("neck", radioOptions.control)}
-                    </FormItem>
-                  )}/>
-                   <FormField control={form.control} name="trunk" render={() => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>التحكم بالجذع <span className="text-red-500">*</span></FormLabel>
-                      {renderRadioGroup("trunk", radioOptions.control)}
-                     </FormItem>
-                  )}/>
-                   <FormField control={form.control} name="standing" render={() => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>القدرة على الوقوف <span className="text-red-500">*</span></FormLabel>
-                      {renderRadioGroup("standing", radioOptions.assistance)}
-                     </FormItem>
-                  )}/>
-                  <FormField control={form.control} name="walking" render={() => (
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>القدرة على المشي <span className="text-red-500">*</span></FormLabel>
-                      {renderRadioGroup("walking", radioOptions.assistance)}
-                    </FormItem>
-                  )}/>
-              </CardContent>
-            </Card>
-          )}
-
-          {currentStep === 3 && (
-            <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary"><div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>التاريخ الطبي</CardTitle>
-                <CardDescription>معلومات عن الأدوية والإصابات السابقة لتجنب أي موانع علاجية.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                     <FormField control={form.control} name="medications" render={() => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>هل يتناول المريض أي أدوية؟ <span className="text-red-500">*</span></FormLabel>
-                          {renderRadioGroup("medications", radioOptions.yesNo)}
-                        </FormItem>
-                      )}/>
-                    {form.watch("medications") === 'yes' && (
-                      <FormField control={form.control} name="medications_details" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-4">
-                          <FormLabel>تفاصيل الأدوية <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <FormField control={form.control} name="fractures" render={() => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12a5 5 0 1 0-5-5"/><path d="M20 12a8 8 0 1 0-8 8"/><path d="M20 12h.01"/></svg></div>هل يعاني المريض من أي كسور؟ <span className="text-red-500">*</span></FormLabel>
-                        {renderRadioGroup("fractures", radioOptions.yesNo)}
-                      </FormItem>
-                    )}/>
-                    {form.watch("fractures") === 'yes' && (
-                      <FormField control={form.control} name="fractures_details" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-4">
-                          <FormLabel>تفاصيل الكسور <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Textarea placeholder="يرجى تحديد موقع الكسر ومرحلة الشفاء الحالية" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="flex items-center justify-between mt-8">
-            {currentStep > 1 ? (
-              <Button type="button" variant="outline" size="lg" onClick={prevStep}>
-                <div className="ml-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
-                السابق
-              </Button>
-            ) : <div />}
-
-            {currentStep < steps.length ? (
-              <Button type="button" size="lg" onClick={nextStep}>
-                التالي
-                <div className="mr-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></div>
-              </Button>
-            ) : (
-              <Button 
-                type="submit" 
-                size="lg" 
-                disabled={isPending}
-                className="min-w-[200px]"
-              >
-                {isPending ? (
-                  <>
-                    <div className="ml-2 h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>
-                    جاري تحليل البيانات...
-                  </>
-                ) : (
-                  <>
-                    <div className="ml-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 3 2.06 2.06a8 8 0 0 0 10.88 10.88L20 21M12.5 8.5A2.5 2.5 0 0 1 15 11M8.1 4.1A2.5 2.5 0 0 1 4 6.5M3 21l2.06-2.06a8 8 0 0 0 10.88-10.88L4 3"/></svg></div>
-                    توليد الخطة بالذكاء الاصطناعي
-                  </>
-                )}
-              </Button>
-            )}
+  const renderContent = () => {
+    switch (pageState) {
+      case 'loading':
+        return (
+          <div className="space-y-6">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
-        </form>
-      </Form>
-    </div>
-  );
+        );
+      case 'generating':
+        return (
+          <Card className="flex flex-col items-center justify-center p-12 text-center bg-secondary/50 border-primary/20 animate-pulse">
+            <Logo className="w-24 h-24 mb-6 animate-spin" showText={false} />
+            <h2 className="text-2xl font-bold text-primary">جاري إنشاء التقرير الشامل...</h2>
+            <p className="text-muted-foreground mt-2">يقوم نظام الذكاء الاصطناعي بتحليل البيانات لتوليد خطة تأهيلية دقيقة. قد تستغرق هذه العملية دقيقة.</p>
+          </Card>
+        );
+      case 'error':
+        return (
+          <Alert variant="destructive">
+            <div className="h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg></div>
+            <AlertTitle>خطأ فادح</AlertTitle>
+            <AlertDescription>
+              {errorMessage}
+              <div className="mt-4">
+                <Button onClick={() => router.push('/assessment')}>البدء من جديد</Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        );
+      case 'displaying':
+        if (!reportData) return null;
+        return (
+          <>
+            <header className="flex flex-col sm:flex-row items-center justify-between mb-8 print:hidden">
+              <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">
+                التقرير الطبي الشامل
+              </h1>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => window.print()}>
+                   <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg></div>
+                  طباعة / حفظ PDF
+                </Button>
+                {!isSaved && (
+                  <Button onClick={handleSaveToCloud} disabled={isSaving}>
+                     {isSaving ? (
+                      <>
+                        <div className="ml-2 h-4 w-4 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>
+                        جاري الحفظ...
+                      </>
+                    ) : (
+                      <>
+                        <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                        الحفظ في السحابة
+                      </>
+                    )}
+                  </Button>
+                )}
+                 {isSaved && (
+                  <Button disabled variant="secondary">
+                     <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                    تم الحفظ بنجاح
+                  </Button>
+                )}
+              </div>
+            </header>
+
+            {/* Patient Info Card */}
+            <Card className="mb-8 print:shadow-none print:border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M22 16h-6"/></svg></div>
+                  معلومات المريض
+                </CardTitle>
+                <CardDescription>ملخص بيانات التقييم الأساسي</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+                  <div><strong className="block text-muted-foreground">اسم المريض:</strong> {reportData.name}</div>
+                  <div><strong className="block text-muted-foreground">العمر:</strong> {reportData.age}</div>
+                  <div><strong className="block text-muted-foreground">الجنس:</strong> {reportData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
+                  <div><strong className="block text-muted-foreground">رقم الملف:</strong> <span className="font-mono">{reportData.fileNumber}</span></div>
+                  <div className="col-span-2"><strong className="block text-muted-foreground">الوظيفة:</strong> {reportData.job}</div>
+                  <div className="col-span-2 md:col-span-4"><strong className="block text-muted-foreground">الأعراض الرئيسية:</strong> {reportData.symptoms}</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Accordion type="multiple" defaultValue={["diagnosis", "plan", "precautions"]} className="w-full space-y-4">
+              {/* Diagnosis */}
+              <AccordionItem value="diagnosis">
+                <Card className="print:shadow-none print:border">
+                  <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
+                     <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+                      التشخيص الأولي والتوقعات
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6">
+                    <div className="space-y-4 prose prose-sm max-w-none">
+                      <h4>التشخيص الوظيفي المبدئي:</h4>
+                      <p>{reportData.initialDiagnosis}</p>
+                      <h4>التوقعات المتوقعة (Prognosis):</h4>
+                      <p>{reportData.prognosis}</p>
+                    </div>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+
+              {/* Rehab Plan */}
+              <AccordionItem value="plan">
+                <Card className="print:shadow-none print:border">
+                  <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></div>
+                      خطة التأهيل المقترحة (12 أسبوع)
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6">
+                    <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: reportData.rehabPlan.replace(/\n/g, '<br />') }} />
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+
+              {/* Precautions */}
+              <AccordionItem value="precautions">
+                <Card className="print:shadow-none print:border">
+                  <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+                      الاحتياطات والاعتبارات الهامة
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6">
+                    <div className="grid md:grid-cols-2 gap-6 prose prose-sm max-w-none">
+                      <div>
+                        <h4>الاحتياطات العامة:</h4>
+                        <p>{reportData.precautions}</p>
+                      </div>
+                      <div>
+                        <h4>تأثير الأدوية:</h4>
+                        <p>{reportData.medicationsInfluence}</p>
+                      </div>
+                      <div>
+                        <h4>اعتبارات الكسور:</h4>
+                        <p>{reportData.fracturesInfluence}</p>
+                      </div>
+                      <div>
+                        <h4>جدول المتابعة المقترح:</h4>
+                        <p>{reportData.reviewAppointments}</p>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+            </Accordion>
+          </>
+        );
+    }
+  };
+
+  return <div className="max-w-5xl mx-auto">{renderContent()}</div>;
 }
+
+    
