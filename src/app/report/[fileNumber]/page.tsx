@@ -80,12 +80,16 @@ export default function ReportPage({
   }, [params.fileNumber]);
 
   const renderFormattedPlan = (text: string) => {
-    // Replace markdown-like bolding with strong tags
-    const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    const sections = formattedText.split(/(\d+\.\s+<strong>.*?<\/strong>)/).filter(Boolean);
+    const formattedText = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br />');
+    
+    // Regex to split by "Week X" or similar headings, even with Arabic text.
+    // It looks for a bolded text that contains "Week" or "الأسبوع"
+    const sections = formattedText.split(/(<strong>(?:الأسبوع|Week)\s*\d+.*?<\/strong>)/).filter(Boolean);
   
     if (sections.length <= 1) {
-        return <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
+        return <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />;
     }
   
     return (
@@ -94,11 +98,19 @@ export default function ReportPage({
                 const title = sections[index * 2];
                 const content = sections[index * 2 + 1];
 
+                if (!title || !content) return null;
+
                 return (
                     <AccordionItem value={`item-${index}`} key={index}>
-                        <AccordionTrigger className="text-lg font-semibold text-primary-foreground" dangerouslySetInnerHTML={{ __html: title }} />
+                        <AccordionTrigger 
+                          className="text-lg font-semibold text-primary-foreground hover:no-underline"
+                          dangerouslySetInnerHTML={{ __html: title }} 
+                        />
                         <AccordionContent>
-                           <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }} />
+                           <div 
+                             className="prose prose-sm max-w-none text-muted-foreground rtl:prose-rtl" 
+                             dangerouslySetInnerHTML={{ __html: content }} 
+                           />
                         </AccordionContent>
                     </AccordionItem>
                 );
@@ -230,7 +242,7 @@ export default function ReportPage({
         <div className="lg:col-span-2 space-y-8">
             {rehabPlan && (
                 <>
-                 <Card className="bg-secondary/20">
+                <Card className="bg-secondary/20">
                     <CardHeader><CardTitle className="flex items-center gap-2"><Stethoscope /> التشخيص المبدئي</CardTitle></CardHeader>
                     <CardContent><p className="text-muted-foreground">{rehabPlan.initialDiagnosis}</p></CardContent>
                 </Card>
@@ -241,49 +253,69 @@ export default function ReportPage({
                 </Card>
                 </>
             )}
-            
-            {consideration && (
-                <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-primary"><Lightbulb />تحليل الذكاء الاصطناعي</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div>
-                    <h4 className="font-semibold mb-2">تأثير الأدوية:</h4>
-                    <p className="text-muted-foreground">{consideration.medicationsInfluence}</p>
-                    </div>
-                    <Separator />
-                    <div>
-                    <h4 className="font-semibold mb-2">تأثير الكسور:</h4>
-                    <p className="text-muted-foreground">{consideration.fracturesInfluence}</p>
-                    </div>
-                </CardContent>
-                </Card>
-            )}
 
-            {rehabPlan && (
-                <>
-                <Card>
-                    <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-primary"><Target /> الخطة التأهيلية المقترحة</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {renderFormattedPlan(rehabPlan.rehabPlan)}
-                    </CardContent>
-                </Card>
+            <Accordion type="multiple" className="space-y-8">
+                {consideration && (
+                    <Card>
+                        <AccordionItem value="ai-analysis" className="border-b-0">
+                            <AccordionTrigger className="p-6 hover:no-underline">
+                                <CardTitle className="flex items-center gap-2 text-primary"><Lightbulb />تحليل الذكاء الاصطناعي للاعتبارات الطبية</CardTitle>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                                <div className="space-y-4">
+                                    <div>
+                                    <h4 className="font-semibold mb-2">تأثير الأدوية:</h4>
+                                    <p className="text-muted-foreground">{consideration.medicationsInfluence}</p>
+                                    </div>
+                                    <Separator />
+                                    <div>
+                                    <h4 className="font-semibold mb-2">تأثير الكسور:</h4>
+                                    <p className="text-muted-foreground">{consideration.fracturesInfluence}</p>
+                                    </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Card>
+                )}
 
-                <div className="grid md:grid-cols-2 gap-6">
+                {rehabPlan && (
+                    <>
                     <Card>
-                        <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={20}/> الاحتياطات</CardTitle></CardHeader>
-                        <CardContent><p className="text-muted-foreground">{rehabPlan.precautions}</p></CardContent>
+                         <AccordionItem value="rehab-plan" className="border-b-0">
+                             <AccordionTrigger className="p-6 hover:no-underline">
+                                <CardTitle className="flex items-center gap-2 text-primary"><Target /> الخطة التأهيلية المقترحة</CardTitle>
+                             </AccordionTrigger>
+                            <AccordionContent className="px-6 pb-6">
+                                {renderFormattedPlan(rehabPlan.rehabPlan)}
+                            </AccordionContent>
+                        </AccordionItem>
                     </Card>
-                    <Card>
-                        <CardHeader><CardTitle className="flex items-center gap-2"><CalendarClock size={20}/> مواعيد المراجعة</CardTitle></CardHeader>
-                        <CardContent><p className="text-muted-foreground">{rehabPlan.reviewAppointments}</p></CardContent>
-                    </Card>
-                </div>
-                </>
-            )}
+                    
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card>
+                            <AccordionItem value="precautions" className="border-b-0">
+                                <AccordionTrigger className="p-6 hover:no-underline">
+                                    <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck size={20}/> الاحتياطات</CardTitle>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <p className="text-muted-foreground">{rehabPlan.precautions}</p>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Card>
+                        <Card>
+                             <AccordionItem value="appointments" className="border-b-0">
+                                <AccordionTrigger className="p-6 hover:no-underline">
+                                     <CardTitle className="flex items-center gap-2 text-base"><CalendarClock size={20}/> مواعيد المراجعة</CardTitle>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-6 pb-6">
+                                    <p className="text-muted-foreground">{rehabPlan.reviewAppointments}</p>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Card>
+                    </div>
+                    </>
+                )}
+            </Accordion>
         </div>
       </div>
     </div>
