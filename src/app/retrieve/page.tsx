@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileSearch, ArrowLeft } from "lucide-react";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RetrievePage() {
   const [fileNumber, setFileNumber] = useState("");
   const router = useRouter();
   const { toast } = useToast();
+  const [user, loading] = useAuthState(auth);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
 
   const handleRetrieve = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +51,18 @@ export default function RetrievePage() {
       });
     }
   };
+
+  if (loading || !user) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-24 w-full" />
+        <div className="space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex items-center justify-center min-h-full">

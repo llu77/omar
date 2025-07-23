@@ -1,9 +1,20 @@
+"use client";
+
 import Link from "next/link";
-import { FilePlus2, FileSearch, LogIn } from "lucide-react";
+import { FilePlus2, FileSearch, LogIn, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { Logo } from "./logo";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
+import { signOut } from "firebase/auth";
 
 export default function Header() {
+  const [user, loading] = useAuthState(auth);
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  }
+
   return (
     <header className="bg-background/75 backdrop-blur-sm shadow-md sticky top-0 z-40 border-b border-border">
       <div className="container mx-auto px-4">
@@ -17,24 +28,37 @@ export default function Header() {
             </span>
           </Link>
           <nav className="hidden md:flex items-center gap-2">
-            <Button asChild variant="ghost">
-              <Link href="/assessment">
-                <FilePlus2 className="ml-2" />
-                تقييم جديد
-              </Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link href="/retrieve">
-                <FileSearch className="ml-2" />
-                استعادة تقرير
-              </Link>
-            </Button>
-            <Button asChild>
-                <Link href="/login">
-                    <LogIn className="ml-2"/>
-                    تسجيل الدخول
-                </Link>
-            </Button>
+            {user && (
+              <>
+                <Button asChild variant="ghost">
+                  <Link href="/assessment">
+                    <FilePlus2 className="ml-2" />
+                    تقييم جديد
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost">
+                  <Link href="/retrieve">
+                    <FileSearch className="ml-2" />
+                    استعادة تقرير
+                  </Link>
+                </Button>
+              </>
+            )}
+            {!loading && (
+              user ? (
+                <Button onClick={handleLogout}>
+                    <LogOut className="ml-2"/>
+                    تسجيل الخروج
+                </Button>
+              ) : (
+                <Button asChild>
+                    <Link href="/login">
+                        <LogIn className="ml-2"/>
+                        تسجيل الدخول
+                    </Link>
+                </Button>
+              )
+            )}
           </nav>
         </div>
       </div>

@@ -35,6 +35,9 @@ import { useEffect, useState, useTransition } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, Shield, User, FileText, Bot, Briefcase, Stethoscope, Sparkles, UserCheck, HeartPulse, Bone } from "lucide-react";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
@@ -73,6 +76,13 @@ export default function AssessmentPage() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [fileNumber, setFileNumber] = useState("");
+  const [user, loading] = useAuthState(auth);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
     const year = new Date().getFullYear();
@@ -172,6 +182,17 @@ export default function AssessmentPage() {
     />
   );
 
+  if (loading || !user) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-24 w-full" />
+        <div className="space-y-4">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-24 w-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full mx-auto max-w-5xl">
@@ -273,3 +294,4 @@ export default function AssessmentPage() {
     </div>
   );
 }
+
