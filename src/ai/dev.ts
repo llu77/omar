@@ -1,12 +1,13 @@
+'use server';
+
 import { ai } from './genkit';
-import { considerPatientInfo } from './flows/consider-patient-info';
-import { generateRehabPlan } from './flows/generate-rehab-plan';
+import { generateEnhancedRehabPlan } from './flows/generate-enhanced-rehab-plan';
 
 // تسجيل التدفقات للتطوير
 console.log('🚀 Genkit Development Server Started');
 console.log('📋 Available Flows:');
-console.log('  - considerPatientInfo');
-console.log('  - generateRehabPlan');
+console.log('  - generateEnhancedRehabPlan');
+
 
 // مثال على البيانات للاختبار
 const sampleInput = {
@@ -23,17 +24,13 @@ const sampleInput = {
 };
 
 // دالة اختبار
-export async function testFlows() {
+export async function testFlow() {
   try {
-    console.log('🔄 Testing considerPatientInfo...');
-    const consideration = await considerPatientInfo(sampleInput);
-    console.log('✅ Consideration Result:', consideration);
-    
-    console.log('\n🔄 Testing generateRehabPlan...');
-    const rehabPlan = await generateRehabPlan(sampleInput);
+    console.log('🔄 Testing generateEnhancedRehabPlan...');
+    const result = await generateEnhancedRehabPlan(sampleInput);
     console.log('✅ Rehab Plan Generated Successfully');
-    
-    return { consideration, rehabPlan };
+    console.log('✅ Result:', result);
+    return { result };
   } catch (error) {
     console.error('❌ Error in test:', error);
     throw error;
@@ -41,4 +38,4 @@ export async function testFlows() {
 }
 
 // تصدير التدفقات
-export { considerPatientInfo, generateRehabPlan };
+export { generateEnhancedRehabPlan };

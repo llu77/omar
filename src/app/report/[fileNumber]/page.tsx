@@ -10,8 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { considerPatientInfo, ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
-import { generateRehabPlan, GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
+import { generateEnhancedRehabPlan, GenerateEnhancedRehabPlanOutput } from "@/ai/flows/generate-enhanced-rehab-plan";
 import { useToast } from "@/hooks/use-toast";
 import {
   Accordion,
@@ -27,7 +26,7 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
-type ReportGenerationState = 'idle' | 'considering' | 'generating' | 'done' | 'error';
+type ReportGenerationState = 'idle' | 'generating' | 'done' | 'error';
 
 function ReportView() {
   const params = useParams();
@@ -38,8 +37,7 @@ function ReportView() {
   const [isSaving, startSavingTransition] = useTransition();
 
   const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
-  const [considerations, setConsiderations] = useState<ConsiderPatientInfoOutput | null>(null);
-  const [rehabPlan, setRehabPlan] = useState<GenerateRehabPlanOutput | null>(null);
+  const [report, setReport] = useState<GenerateEnhancedRehabPlanOutput | null>(null);
   const [generationState, setGenerationState] = useState<ReportGenerationState>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -49,16 +47,12 @@ function ReportView() {
     }
   }, [user, loading, router]);
   
-  const runAIFlows = useCallback(async (data: PatientDataForAI) => {
-    setGenerationState('considering');
+  const runAIFlow = useCallback(async (data: PatientDataForAI) => {
+    setGenerationState('generating');
     setError(null);
     try {
-      const infoConsiderations = await considerPatientInfo(data);
-      setConsiderations(infoConsiderations);
-      
-      setGenerationState('generating');
-      const plan = await generateRehabPlan(data);
-      setRehabPlan(plan);
+      const generatedReport = await generateEnhancedRehabPlan(data);
+      setReport(generatedReport);
       
       setGenerationState('done');
       toast({
@@ -86,7 +80,7 @@ function ReportView() {
         const parsedData = JSON.parse(data);
         setPatientData(parsedData);
         if (generationState === 'idle') {
-          runAIFlows(parsedData);
+          runAIFlow(parsedData);
         }
       } else if (generationState !== 'done') {
         setGenerationState('error');
@@ -96,10 +90,10 @@ function ReportView() {
       setGenerationState('error');
       setError("فشل في قراءة بيانات المريض من التخزين المحلي.");
     }
-  }, [fileNumber, runAIFlows, generationState]);
+  }, [fileNumber, runAIFlow, generationState]);
 
   const handleSaveReport = () => {
-    if (!rehabPlan || !patientData || !user) return;
+    if (!report || !patientData || !user) return;
 
     startSavingTransition(async () => {
       try {
@@ -110,8 +104,7 @@ function ReportView() {
           patientName: patientData.name,
           createdAt: new Date(),
           patientData: patientData,
-          rehabPlan: rehabPlan,
-          considerations: considerations,
+          report: report,
         });
 
         toast({
@@ -132,8 +125,7 @@ function ReportView() {
   const renderStatus = () => {
     const statusMap = {
       idle: { icon: <Clock className="animate-spin" />, text: "في انتظار بيانات المريض...", bg: "bg-gray-100 dark:bg-gray-800" },
-      considering: { icon: <BrainCircuit className="animate-pulse" />, text: "تحليل الاعتبارات الطبية (الأدوية والكسور)...", bg: "bg-blue-100 dark:bg-blue-900/30" },
-      generating: { icon: <Sparkles className="animate-pulse" />, text: "توليد خطة التأهيل المخصصة...", bg: "bg-purple-100 dark:bg-purple-900/30" },
+      generating: { icon: <Sparkles className="animate-pulse" />, text: "جاري إنشاء التقرير الشامل...", bg: "bg-purple-100 dark:bg-purple-900/30" },
       done: { icon: <CheckCircle className="text-green-500" />, text: "اكتمل التقرير بنجاح!", bg: "bg-green-100 dark:bg-green-900/30" },
       error: { icon: <AlertTriangle className="text-red-500" />, text: "حدث خطأ", bg: "bg-red-100 dark:bg-red-900/30" },
     };
@@ -217,7 +209,7 @@ function ReportView() {
           </Card>
         )}
 
-        {rehabPlan && (
+        {report && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Stethoscope />التشخيص والتوقعات</CardTitle>
@@ -225,32 +217,32 @@ function ReportView() {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold text-lg mb-2">التشخيص الأولي</h3>
-                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{rehabPlan.initialDiagnosis}</p>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{report.initialDiagnosis}</p>
               </div>
               <Separator />
               <div>
                 <h3 className="font-semibold text-lg mb-2">التنبؤ للحالة (Prognosis)</h3>
-                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{rehabPlan.prognosis}</p>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{report.prognosis}</p>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {rehabPlan && (
+        {report && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Activity />خطة التأهيل الشاملة</CardTitle>
-              <CardDescription>برنامج علاجي مفصل   </CardDescription>
+              <CardDescription>برنامج علاجي مفصل</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="prose dark:prose-invert max-w-none">
-                <div className="whitespace-pre-wrap font-body bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</div>
+                <div className="whitespace-pre-wrap font-body bg-secondary/50 p-4 rounded-lg">{report.rehabPlan}</div>
               </div>
             </CardContent>
           </Card>
         )}
         
-        {considerations && rehabPlan && (
+        {report && (
            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><AlertTriangle />الاحتياطات والاعتبارات الطبية</CardTitle>
@@ -260,25 +252,25 @@ function ReportView() {
                 <AccordionItem value="item-1">
                   <AccordionTrigger className="text-lg font-semibold">الاحتياطات العامة</AccordionTrigger>
                   <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
-                    {rehabPlan.precautions}
+                    {report.precautions}
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-2">
                   <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><HeartPulse/>تأثير الأدوية</AccordionTrigger>
                   <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
-                    {considerations.medicationsInfluence}
+                    {report.medicationsInfluence}
                   </AccordionContent>
                 </AccordionItem>
                  <AccordionItem value="item-3">
                   <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><Bone/>تأثير الكسور</AccordionTrigger>
                   <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
-                    {considerations.fracturesInfluence}
+                    {report.fracturesInfluence}
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-4">
                   <AccordionTrigger className="text-lg font-semibold">جدول المتابعة والمراجعات</AccordionTrigger>
                   <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
-                    {rehabPlan.reviewAppointments}
+                    {report.reviewAppointments}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
