@@ -154,7 +154,7 @@ export default function Header() {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/reports" className="cursor-pointer">
+                      <Link href="/report" className="cursor-pointer">
                         <BarChart className="ml-2 h-4 w-4" />
                         تقاريري
                       </Link>

@@ -373,3 +373,6 @@ export default function LoginPage() {
     </div>
   );
 }
+<div className="flex justify-center">
+  <Logo size={120} showText={false} />
+</div>

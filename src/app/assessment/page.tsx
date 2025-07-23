@@ -572,3 +572,6 @@ export default function AssessmentPage() {
     </div>
   );
 }
+<div className="flex justify-center mb-6">
+  <Logo size={150} showText={false} />
+</div>
