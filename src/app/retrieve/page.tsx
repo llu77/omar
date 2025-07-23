@@ -34,11 +34,12 @@ export default function RetrievePage() {
   const [user, authLoading] = useAuthState(auth);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+    if (!user) {
       router.push('/login');
-    } else if (user) {
-      loadAllReports(user.uid);
+      return;
     }
+    loadAllReports(user.uid);
   }, [user, authLoading, router]);
 
   const loadAllReports = async (userId: string) => {
@@ -63,7 +64,10 @@ export default function RetrievePage() {
           }
         }
       }
-    } catch (e) { console.error('Error parsing local reports:', e); }
+    } catch (e) { 
+      console.error('Error parsing local reports:', e);
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
+    }
 
     // 2. Load from Firebase and merge/overwrite
     try {
@@ -79,9 +83,9 @@ export default function RetrievePage() {
           source: 'cloud',
         });
       });
-    } catch (firebaseError) {
+    } catch (firebaseError: any) {
       console.error('Error loading cloud reports:', firebaseError);
-      setError("فشل تحميل التقارير المحفوظة في السحابة. قد تظهر التقارير المحلية فقط.");
+      setError("فشل تحميل التقارير المحفوظة في السحابة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
     }
     
     const sortedReports = Array.from(reportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -115,7 +119,7 @@ export default function RetrievePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
+      <Card className="shadow-lg bg-card/80 backdrop-blur-sm border-primary/10">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center gap-3">
             <div className="w-8 h-8"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
@@ -126,28 +130,26 @@ export default function RetrievePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-6">
-            <form onSubmit={handleRetrieve} className="space-y-2">
-              <label htmlFor="fileNumber" className="text-sm font-medium text-muted-foreground">
-                البحث برقم الملف
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="fileNumber"
-                  type="text"
-                  value={fileNumber}
-                  onChange={(e) => setFileNumber(e.target.value)}
-                  placeholder="مثال: WSL-2025-12345"
-                  className="text-left text-lg font-mono"
-                  dir="ltr"
-                  disabled={isSearching}
-                />
-                <Button type="submit" size="lg" disabled={isSearching}>
-                  {isSearching ? <div className="h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div> : <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>}
-                </Button>
-              </div>
-            </form>
-          </div>
+          <form onSubmit={handleRetrieve} className="space-y-2">
+            <label htmlFor="fileNumber" className="text-sm font-medium">
+              البحث برقم الملف
+            </label>
+            <div className="flex gap-2">
+              <Input
+                id="fileNumber"
+                type="text"
+                value={fileNumber}
+                onChange={(e) => setFileNumber(e.target.value)}
+                placeholder="مثال: WSL-2025-12345"
+                className="text-left text-lg font-mono"
+                dir="ltr"
+                disabled={isSearching}
+              />
+              <Button type="submit" size="lg" disabled={isSearching}>
+                {isSearching ? <div className="h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div> : <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>}
+              </Button>
+            </div>
+          </form>
           
           <Separator className="my-6" />
 

@@ -22,11 +22,11 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FileText, User, Calendar, Briefcase, Stethoscope,
-  AlertTriangle, Printer, Download, Loader2, Database, Zap, CheckCircle, Clock
+  AlertTriangle, Printer, Loader2, Database, Zap, CheckCircle, Clock
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
-type ReportGenerationState = 'idle' | 'checking_cache' | 'fetching_db' | 'generating_ai' | 'done' | 'error';
+type ReportGenerationState = 'idle' | 'checking_db' | 'checking_local' | 'generating_ai' | 'done' | 'error';
 
 const PatientInfoCard = memo(({ patientData }: { patientData: PatientDataForAI }) => (
   <Card>
@@ -60,12 +60,13 @@ const ReportSection = memo(({ title, content, icon }: { title: string; content: 
 ));
 ReportSection.displayName = 'ReportSection';
 
-function ReportView() {
+
+function ReportPage() {
   const params = useParams();
   const fileNumber = params.fileNumber as string;
   const router = useRouter();
   const { toast } = useToast();
-  const [user, loading] = useAuthState(auth);
+  const [user, authLoading] = useAuthState(auth);
   const [isSaving, startSavingTransition] = useTransition();
 
   const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
@@ -80,36 +81,43 @@ function ReportView() {
     reportData: GenerateEnhancedRehabPlanOutput,
     userId: string
   ) => {
-    try {
-      const reportDocRef = doc(db, 'reports', fileNum);
-      await setDoc(reportDocRef, {
-        userId,
-        fileNumber: fileNum,
-        patientName: patient.name,
-        createdAt: new Date(),
-        patientData: patient,
-        report: reportData,
-      });
-      return true;
-    } catch (e) {
-      console.error('Save to DB failed:', e);
-      toast({
-        variant: "destructive",
-        title: "فشل الحفظ في السحابة",
-        description: "حدث خطأ أثناء محاولة حفظ التقرير. يرجى المحاولة مرة أخرى.",
-      });
-      return false;
-    }
+    startSavingTransition(async () => {
+      try {
+        const reportDocRef = doc(db, 'reports', fileNum);
+        await setDoc(reportDocRef, {
+          userId,
+          fileNumber: fileNum,
+          patientName: patient.name,
+          createdAt: new Date(),
+          patientData: patient,
+          report: reportData,
+        });
+        toast({ title: "تم الحفظ بنجاح", description: "تم حفظ التقرير في السحابة." });
+      } catch (e: any) {
+        console.error('Save to DB failed:', e);
+        toast({
+          variant: "destructive",
+          title: "فشل الحفظ في السحابة",
+          description: e.message || "حدث خطأ أثناء محاولة حفظ التقرير.",
+        });
+      }
+    });
   }, [toast]);
 
   useEffect(() => {
-    if (!fileNumber || !user || loading) return;
+    if (authLoading || !fileNumber) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
     const loadData = async () => {
-      setGenerationState('fetching_db');
+      setGenerationState('checking_db');
       setProgress(25);
+      setError(null);
 
       try {
+        // 1. Check Firestore first
         const reportDocRef = doc(db, 'reports', fileNumber);
         const docSnap = await getDoc(reportDocRef);
 
@@ -122,14 +130,16 @@ function ReportView() {
           toast({ title: "تم استعادة التقرير من السحابة بنجاح" });
           return;
         }
-
-        setGenerationState('checking_cache');
+        
+        // 2. If not in Firestore, check local storage
+        setGenerationState('checking_local');
         setProgress(50);
         const localDataString = localStorage.getItem(`report-${fileNumber}`);
         
         if (!localDataString) {
           setError("لم يتم العثور على بيانات المريض. يرجى إنشاء تقييم جديد.");
           setGenerationState('error');
+          toast({ variant: "destructive", title: "خطأ", description: "لم يتم العثور على بيانات التقرير." });
           router.push('/assessment');
           return;
         }
@@ -137,6 +147,7 @@ function ReportView() {
         const parsedData: PatientDataForAI = JSON.parse(localDataString);
         setPatientData(parsedData);
         
+        // 3. Generate new report if data found locally but not in DB
         setGenerationState('generating_ai');
         setProgress(75);
 
@@ -145,41 +156,34 @@ function ReportView() {
         setProgress(100);
         setGenerationState('done');
         
-        // Save the newly generated report to DB automatically
+        // 4. Save the newly generated report to DB automatically
         await saveReportToDb(fileNumber, parsedData, generatedReport, user.uid);
         toast({
-          title: "تم إنشاء التقرير وحفظه في السحابة بنجاح"
+          title: "تم إنشاء التقرير وحفظه في السحابة"
         });
 
       } catch (e: any) {
         console.error('Data loading/generation error:', e);
         setError(e.message || 'فشل تحميل أو توليد التقرير');
         setGenerationState('error');
+        toast({
+          variant: 'destructive',
+          title: 'حدث خطأ فادح',
+          description: e.message || 'فشل تحميل أو توليد التقرير. يرجى المحاولة مرة أخرى.',
+        });
       }
     };
 
     loadData();
 
-  }, [fileNumber, user, loading, router, toast, saveReportToDb]);
-
-  const handleManualSave = () => {
-    if (!report || !patientData || !user) return;
-    startSavingTransition(async () => {
-      const success = await saveReportToDb(fileNumber, patientData, report, user.uid);
-      if (success) {
-        toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم حفظ التقرير في السحابة.",
-        });
-      }
-    });
-  };
+  }, [fileNumber, user, authLoading, router, toast, saveReportToDb]);
+  
 
   const StatusIndicator = useMemo(() => {
     const statusConfig: Record<ReportGenerationState, { icon: React.ElementType, text: string, color: string }> = {
       idle: { icon: Clock, text: "جاري التحضير...", color: "text-gray-500" },
-      fetching_db: { icon: Database, text: "البحث في التقارير المحفوظة...", color: "text-blue-500" },
-      checking_cache: { icon: Zap, text: "فحص البيانات المحلية...", color: "text-yellow-500" },
+      checking_db: { icon: Database, text: "البحث في التقارير المحفوظة...", color: "text-blue-500" },
+      checking_local: { icon: Zap, text: "فحص البيانات المحلية...", color: "text-yellow-500" },
       generating_ai: { icon: Zap, text: "توليد تقرير جديد بالذكاء الاصطناعي...", color: "text-purple-500 animate-pulse" },
       done: { icon: CheckCircle, text: "اكتمل بنجاح!", color: "text-green-500" },
       error: { icon: AlertTriangle, text: "حدث خطأ", color: "text-red-500" },
@@ -203,11 +207,9 @@ function ReportView() {
       </Card>
     );
   }, [generationState, progress, error]);
-
-  if (loading || (!user && !loading) || generationState === 'idle') {
-    return <LoadingSkeleton />;
-  }
   
+  const showLoadingSkeleton = authLoading || generationState === 'idle' || (generationState !== 'done' && generationState !== 'error');
+
   return (
     <div className="max-w-5xl mx-auto">
       <header className="mb-8">
@@ -222,13 +224,13 @@ function ReportView() {
             </p>
           </div>
           <div className="flex gap-2 no-print">
-            <Button variant="outline" onClick={() => window.print()}>
+            <Button variant="outline" onClick={() => window.print()} disabled={!report}>
               <Printer className="ml-2 h-4 w-4" />
               طباعة
             </Button>
             {report && (
-              <Button onClick={handleManualSave} disabled={isSaving}>
-                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Download className="ml-2 h-4 w-4" />}
+              <Button onClick={() => saveReportToDb(fileNumber, patientData!, report!, user!.uid)} disabled={isSaving}>
+                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>}
                 حفظ
               </Button>
             )}
@@ -237,76 +239,76 @@ function ReportView() {
         <Separator className="my-6" />
       </header>
 
-      {StatusIndicator}
+      {showLoadingSkeleton ? (
+         <div className="space-y-6">
+            <StatusIndicator />
+            <LoadingSkeleton />
+         </div>
+      ) : (
+        <div className="space-y-6">
+          {patientData ? <PatientInfoCard patientData={patientData} /> : <Skeleton className="h-64" />}
+          {report ? (
+            <>
+              <ReportSection
+                title="التشخيص المبدئي والتوقعات"
+                icon={<Stethoscope />}
+                content={`<h3>التشخيص المبدئي</h3><p>${report.initialDiagnosis}</p><br/><h3>التوقعات</h3><p>${report.prognosis}</p>`}
+              />
 
-      <div className="space-y-6">
-        {patientData ? <PatientInfoCard patientData={patientData} /> : <Skeleton className="h-64" />}
+              <Card>
+                 <CardHeader><CardTitle className="flex items-center gap-2"><FileText /> خطة التأهيل الشاملة</CardTitle></CardHeader>
+                 <CardContent>
+                    <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: report.rehabPlan.replace(/## /g, '<h3>').replace(/\n/g, '<br/>') }} />
+                 </CardContent>
+              </Card>
 
-        {report ? (
-          <>
-            <ReportSection
-              title="التشخيص المبدئي والتوقعات"
-              icon={<Stethoscope />}
-              content={`<h3>التشخيص المبدئي</h3><p>${report.initialDiagnosis}</p><br/><h3>التوقعات</h3><p>${report.prognosis}</p>`}
-            />
-
-            <Card>
-               <CardHeader><CardTitle className="flex items-center gap-2"><FileText /> خطة التأهيل الشاملة</CardTitle></CardHeader>
-               <CardContent>
-                  <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: report.rehabPlan.replace(/## /g, '<h3>').replace(/\n/g, '<br/>') }} />
-               </CardContent>
-            </Card>
-
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertTriangle />الاحتياطات والاعتبارات الطبية
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible defaultValue="precautions" className="w-full">
-                  <AccordionItem value="precautions">
-                    <AccordionTrigger>الاحتياطات العامة</AccordionTrigger>
-                    <AccordionContent>{report.precautions}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="medications">
-                    <AccordionTrigger>تأثير الأدوية</AccordionTrigger>
-                    <AccordionContent>{report.medicationsInfluence}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="fractures">
-                    <AccordionTrigger>تأثير الكسور</AccordionTrigger>
-                    <AccordionContent>{report.fracturesInfluence}</AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="appointments">
-                    <AccordionTrigger>جدول المتابعة</AccordionTrigger>
-                    <AccordionContent>{report.reviewAppointments}</AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          generationState !== 'error' && <LoadingSkeleton />
-        )}
-      </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertTriangle />الاحتياطات والاعتبارات الطبية
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible defaultValue="precautions" className="w-full">
+                    <AccordionItem value="precautions">
+                      <AccordionTrigger>الاحتياطات العامة</AccordionTrigger>
+                      <AccordionContent>{report.precautions}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="medications">
+                      <AccordionTrigger>تأثير الأدوية</AccordionTrigger>
+                      <AccordionContent>{report.medicationsInfluence}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="fractures">
+                      <AccordionTrigger>تأثير الكسور</AccordionTrigger>
+                      <AccordionContent>{report.fracturesInfluence}</AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="appointments">
+                      <AccordionTrigger>جدول المتابعة</AccordionTrigger>
+                      <AccordionContent>{report.reviewAppointments}</AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+             <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>فشل تحميل التقرير</AlertTitle>
+                <AlertDescription>{error || "حدث خطأ غير متوقع أثناء محاولة عرض التقرير."}</AlertDescription>
+             </Alert>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 const LoadingSkeleton = () => (
   <div className="space-y-6 animate-pulse">
-    <div className="flex justify-between items-center">
-      <Skeleton className="h-12 w-1/2" />
-      <Skeleton className="h-10 w-24" />
-    </div>
-    <Skeleton className="h-24 w-full" />
-    <Skeleton className="h-48 w-full" />
+    <Skeleton className="h-64 w-full" />
     <Skeleton className="h-48 w-full" />
     <Skeleton className="h-48 w-full" />
   </div>
 );
 
-export default function ReportPage() {
-  return <ReportView />;
-}
+export default ReportPage;
