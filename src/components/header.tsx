@@ -13,7 +13,7 @@ export default function Header() {
               وصّل للتأهيل الطبي
             </span>
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="hidden md:flex items-center gap-2">
             <Button asChild variant="ghost">
               <Link href="/assessment">
                 <FilePlus2 className="ml-2" />
