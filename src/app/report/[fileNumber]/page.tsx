@@ -82,12 +82,12 @@ export default function ReportPage({
   const renderFormattedPlan = (text: string) => {
     // Replace markdown-like bolding with strong tags
     const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    const sections = formattedText.split(/(\d+\.\s+**Week \d+.*)/).filter(Boolean);
-
+    const sections = formattedText.split(/(\d+\.\s+<strong>Week \d+.*?<\/strong>)/).filter(Boolean);
+  
     if (sections.length <= 1) {
         return <div dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
     }
-
+  
     return (
         <Accordion type="single" collapsible className="w-full">
             {Array.from({ length: Math.ceil(sections.length / 2) }).map((_, index) => {
