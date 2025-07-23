@@ -1,297 +1,291 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { PatientDataForAI } from "@/types";
-import { considerPatientInfo } from "@/ai/flows/consider-patient-info";
-import type { ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
-import { generateRehabPlan } from "@/ai/flows/generate-rehab-plan";
-import type { GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
-import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart, Stethoscope, Activity, FilePlus, BrainCircuit, Target, Shield, HeartPulse, Bone, Briefcase } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileText, Search, Filter, Calendar, User, Download } from "lucide-react";
+import { formatDistanceToNow, format } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
-export default function ReportPage({
-  params: paramsPromise,
-}: {
-  params: Promise<{ fileNumber: string }>;
-}) {
-  const params = use(paramsPromise);
-  const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
-  const [consideration, setConsideration] = useState<ConsiderPatientInfoOutput | null>(null);
-  const [rehabPlan, setRehabPlan] = useState<GenerateRehabPlanOutput | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface Report {
+  id: string;
+  fileNumber: string;
+  patientName: string;
+  createdAt: Date;
+  age: number;
+  gender: string;
+  diagnosis?: string;
+}
+
+export default function ReportsPage() {
+  const [user, loading] = useAuthState(auth);
+  const router = useRouter();
+  const [reports, setReports] = useState<Report[]>([]);
+  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("date-desc");
 
   useEffect(() => {
-    const fileNumber = params.fileNumber;
-    if (!fileNumber) {
-        setLoading(false);
-        setError("رقم الملف غير موجود.");
-        return;
-    };
-
-    const generateReports = async (data: PatientDataForAI) => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const [considerationResult, rehabPlanResult] = await Promise.all([
-          considerPatientInfo(data),
-          generateRehabPlan(data),
-        ]);
-
-        setConsideration(considerationResult);
-        setRehabPlan(rehabPlanResult);
-      } catch (aiError: any) {
-        console.error("AI Generation Error:", aiError);
-        setError(aiError.message || "حدث خطأ أثناء توليد التقرير بواسطة الذكاء الاصطناعي.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    try {
-      const savedData = localStorage.getItem(`report-${fileNumber}`);
-      if (!savedData) {
-        throw new Error("لم يتم العثور على بيانات التقرير.");
-      }
-      const parsedData: PatientDataForAI = JSON.parse(savedData);
-      setPatientData(parsedData);
-      generateReports(parsedData);
-    } catch (e: any) {
-      setError(e.message);
-      setLoading(false);
+    if (!loading && !user) {
+      router.push('/login');
     }
-  }, [params.fileNumber]);
+  }, [user, loading, router]);
 
-  const renderFormattedPlan = (text: string) => {
-    const formattedText = text
-      .replace(/【(.*?)】/g, '<strong>$1</strong>')
-      .replace(/═══════════════════════════════════════/g, '<hr class="my-4 border-dashed border-border" />')
-      .replace(/✓/g, '<span class="text-green-400 ml-2">✓</span>')
-      .replace(/▸/g, '<span class="text-primary ml-2">▸</span>')
-      .replace(/⚠️/g, '<span class="text-yellow-400 ml-2">⚠️</span>')
-      .replace(/📅/g, '<span class="text-blue-400 ml-2">📅</span>')
-      .replace(/📋/g, '<span class="text-indigo-400 ml-2">📋</span>')
-      .replace(/\n/g, '<br />');
+  useEffect(() => {
+    if (user) {
+      loadReports();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    filterAndSortReports();
+  }, [reports, searchTerm, sortBy]);
+
+  const loadReports = async () => {
+    if (!user) return;
+    
+    setLoadingReports(true);
+    try {
+      const allReports: Report[] = [];
+
+      // من localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('report-')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            allReports.push({
+              id: key,
+              fileNumber: data.fileNumber,
+              patientName: data.name,
+              createdAt: new Date(data.createdAt || Date.now()),
+              age: data.age,
+              gender: data.gender,
+            });
+          } catch (e) {
+            console.error('Error parsing report:', e);
+          }
+        }
+      }
+
+      // من Firebase
+      const q = query(
+        collection(db, 'reports'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
       
-    return <div className="prose prose-sm max-w-none text-muted-foreground rtl:prose-rtl" dangerouslySetInnerHTML={{ __html: formattedText }} />;
-};
-  
-  if (loading) {
-     return (
-        <div className="space-y-6">
-          <Card className="bg-secondary/30 text-center p-8">
-            <CardHeader>
-              <div className="flex justify-center items-center mb-4">
-                 <div className="relative w-24 h-24">
-                    <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse"></div>
-                    <div className="absolute inset-2 bg-primary/20 rounded-full animate-pulse [animation-delay:0.2s]"></div>
-                    <div className="absolute inset-4 bg-card border-2 border-primary/50 rounded-full flex items-center justify-center">
-                        <Bot className="text-primary w-12 h-12" />
-                    </div>
-                </div>
-              </div>
-              <CardTitle className="text-3xl font-headline">
-                جاري إنشاء تقرير التأهيل الطبي...
-              </CardTitle>
-              <CardDescription>
-                يقوم الذكاء الاصطناعي بتحليل البيانات الآن. قد يستغرق هذا بضع لحظات.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <div className="grid md:grid-cols-2 gap-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-          <div className="space-y-4">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-24 w-full" />
-          </div>
-        </div>
-      )
-  }
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        allReports.push({
+          id: doc.id,
+          fileNumber: data.fileNumber,
+          patientName: data.patientName,
+          createdAt: data.createdAt.toDate(),
+          age: data.patientData?.age || 0,
+          gender: data.patientData?.gender || '',
+          diagnosis: data.rehabPlan?.initialDiagnosis,
+        });
+      });
 
-  if (error) {
+      // إزالة التكرارات
+      const uniqueReports = allReports.filter((report, index, self) =>
+        index === self.findIndex((r) => r.fileNumber === report.fileNumber)
+      );
+
+      setReports(uniqueReports);
+    } catch (error) {
+      console.error('Error loading reports:', error);
+    } finally {
+      setLoadingReports(false);
+    }
+  };
+
+  const filterAndSortReports = () => {
+    let filtered = [...reports];
+
+    // البحث
+    if (searchTerm) {
+      filtered = filtered.filter(report =>
+        report.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.fileNumber.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // الترتيب
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "date-desc":
+          return b.createdAt.getTime() - a.createdAt.getTime();
+        case "date-asc":
+          return a.createdAt.getTime() - b.createdAt.getTime();
+        case "name":
+          return a.patientName.localeCompare(b.patientName, 'ar');
+        case "age":
+          return a.age - b.age;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredReports(filtered);
+  };
+
+  const exportReports = () => {
+    const csvContent = [
+      ['رقم الملف', 'اسم المريض', 'العمر', 'الجنس', 'تاريخ الإنشاء'],
+      ...filteredReports.map(report => [
+        report.fileNumber,
+        report.patientName,
+        report.age,
+        report.gender === 'male' ? 'ذكر' : 'أنثى',
+        format(report.createdAt, 'yyyy-MM-dd', { locale: arSA })
+      ])
+    ].map(row => row.join(',')).join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `تقارير_وصل_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    link.click();
+  };
+
+  if (loading || !user) {
     return (
-      <Alert variant="destructive" className="max-w-2xl mx-auto">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>خطأ في عرض التقرير</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <Card className="bg-secondary/30">
-        <CardHeader>
-          <CardTitle className="text-3xl font-headline flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText />
-              تقرير التأهيل الطبي
-            </div>
-            {patientData && <Badge variant="secondary" className="text-lg font-mono">{patientData.fileNumber}</Badge>}
-          </CardTitle>
-          <CardDescription>
-            هذا التقرير تم إنشاؤه بواسطة الذكاء الاصطناعي ويجب مراجعته من قبل أخصائي مؤهل.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1 space-y-8">
-            {patientData && (
-                <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><User />بيانات المريض</CardTitle></CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">الاسم:</span>
-                        <span>{patientData.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">العمر:</span>
-                        <span>{patientData.age}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">الجنس:</span>
-                        <span>{patientData.gender === 'male' ? 'ذكر' : 'أنثى'}</span>
-                    </div>
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">المهنة:</span>
-                        <span>{patientData.job}</span>
-                    </div>
-                    <Separator/>
-                    <div className="pt-2">
-                        <strong className="block text-muted-foreground mb-2">الأعراض الرئيسية:</strong>
-                        <p>{patientData.symptoms}</p>
-                    </div>
-                </CardContent>
-                </Card>
-            )}
-            {patientData && (
-                 <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><Activity />الحالة الوظيفية</CardTitle></CardHeader>
-                    <CardContent className="space-y-3 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">تحكم الرقبة:</span><span>{patientData.neck}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">تحكم الجذع:</span><span>{patientData.trunk}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">الوقوف:</span><span>{patientData.standing}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">المشي:</span><span>{patientData.walking}</span></div>
-                    </CardContent>
-                </Card>
-            )}
-            {patientData && (
-                 <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><HeartPulse />التاريخ الطبي</CardTitle></CardHeader>
-                    <CardContent className="space-y-4 text-sm">
-                         <div>
-                            <strong className="flex items-center gap-2 text-muted-foreground mb-2"><Shield size={16}/>الأدوية</strong>
-                            <p>{patientData.medications}</p>
-                         </div>
-                         <div>
-                            <strong className="flex items-center gap-2 text-muted-foreground mb-2"><Bone size={16}/>الكسور</strong>
-                            <p>{patientData.fractures}</p>
-                         </div>
-                    </CardContent>
-                </Card>
-            )}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <FileText className="h-8 w-8" />
+            تقاريري
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            إجمالي التقارير: {reports.length}
+          </p>
         </div>
-        
-        <div className="lg:col-span-2 space-y-8">
-            {rehabPlan && (
-                <>
-                <Card className="bg-secondary/20">
-                    <CardHeader><CardTitle className="flex items-center gap-2"><Stethoscope /> التشخيص المبدئي</CardTitle></CardHeader>
-                    <CardContent><p className="text-muted-foreground">{rehabPlan.initialDiagnosis}</p></CardContent>
-                </Card>
-
-                <Card className="bg-secondary/20">
-                    <CardHeader><CardTitle className="flex items-center gap-2"><LineChart /> التوقع العلمي للحالة (Prognosis)</CardTitle></CardHeader>
-                    <CardContent><p className="text-muted-foreground">{rehabPlan.prognosis}</p></CardContent>
-                </Card>
-                </>
-            )}
-
-            <Accordion type="multiple" className="space-y-8">
-                {consideration && (
-                    <Card>
-                        <AccordionItem value="ai-analysis" className="border-b-0">
-                            <AccordionTrigger className="p-6 hover:no-underline">
-                                <CardTitle className="flex items-center gap-2 text-primary"><Lightbulb />تحليل الذكاء الاصطناعي للاعتبارات الطبية</CardTitle>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                <div className="space-y-4">
-                                    <div>
-                                    <h4 className="font-semibold mb-2">تأثير الأدوية:</h4>
-                                    <p className="text-muted-foreground">{consideration.medicationsInfluence}</p>
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                    <h4 className="font-semibold mb-2">تأثير الكسور:</h4>
-                                    <p className="text-muted-foreground">{consideration.fracturesInfluence}</p>
-                                    </div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-                )}
-
-                {rehabPlan && (
-                    <>
-                    <Card>
-                         <AccordionItem value="rehab-plan" className="border-b-0">
-                             <AccordionTrigger className="p-6 hover:no-underline">
-                                <CardTitle className="flex items-center gap-2 text-primary"><Target /> الخطة التأهيلية المقترحة</CardTitle>
-                             </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                {renderFormattedPlan(rehabPlan.rehabPlan)}
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Card>
-                    
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <AccordionItem value="precautions" className="border-b-0">
-                                <AccordionTrigger className="p-6 hover:no-underline">
-                                    <CardTitle className="flex items-center gap-2 text-base"><ShieldCheck size={20}/> الاحتياطات</CardTitle>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-6 pb-6">
-                                    <p className="text-muted-foreground">{rehabPlan.precautions}</p>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Card>
-                        <Card>
-                             <AccordionItem value="appointments" className="border-b-0">
-                                <AccordionTrigger className="p-6 hover:no-underline">
-                                     <CardTitle className="flex items-center gap-2 text-base"><CalendarClock size={20}/> مواعيد المراجعة</CardTitle>
-                                </AccordionTrigger>
-                                <AccordionContent className="px-6 pb-6">
-                                    <p className="text-muted-foreground">{rehabPlan.reviewAppointments}</p>
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Card>
-                    </div>
-                    </>
-                )}
-            </Accordion>
-        </div>
+        <Button onClick={exportReports} variant="outline">
+          <Download className="h-4 w-4 ml-2" />
+          تصدير CSV
+        </Button>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="بحث بالاسم أو رقم الملف..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pr-10"
+                />
+              </div>
+            </div>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="ترتيب حسب" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-desc">الأحدث أولاً</SelectItem>
+                <SelectItem value="date-asc">الأقدم أولاً</SelectItem>
+                <SelectItem value="name">الاسم</SelectItem>
+                <SelectItem value="age">العمر</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reports Grid */}
+      {loadingReports ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      ) : filteredReports.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg text-muted-foreground">
+              {searchTerm ? "لا توجد نتائج للبحث" : "لا توجد تقارير بعد"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredReports.map((report) => (
+            <Card
+              key={report.fileNumber}
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => router.push(`/report/${report.fileNumber}`)}
+            >
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg">{report.patientName}</CardTitle>
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {report.fileNumber}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User className="h-4 w-4" />
+                    <span>{report.age} سنة - {report.gender === 'male' ? 'ذكر' : 'أنثى'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>
+                      {formatDistanceToNow(report.createdAt, { 
+                        addSuffix: true,
+                        locale: arSA 
+                      })}
+                    </span>
+                  </div>
+                  {report.diagnosis && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-3">
+                      {report.diagnosis}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
