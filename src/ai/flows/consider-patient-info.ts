@@ -38,6 +38,7 @@ const prompt = ai.definePrompt({
   name: 'considerPatientInfoPrompt',
   input: {schema: ConsiderPatientInfoInputSchema},
   output: {schema: ConsiderPatientInfoOutputSchema},
+  model: openAI('gpt-4o-mini'),
   prompt: `You are an expert physical therapist. Consider the following patient information and explain how medications and fractures should influence the rehabilitation plan.\n\nPatient Information:\nAge: {{{age}}}\nGender: {{{gender}}}\nNeck Control: {{{neck}}}\nTrunk Control: {{{trunk}}}\nStanding: {{{standing}}}\nWalking: {{{walking}}}\nMedications: {{{medications}}}\nFractures: {{{fractures}}}\n\nMedications Influence: Medications can impact a patient's energy levels, pain tolerance, and overall healing ability.  Certain medications may contraindicate specific exercises or require adjustments to the intensity and duration of the rehabilitation program.  Document how medications should influence the rehab plan.\n\nFractures Influence: Fractures significantly impact the rehabilitation plan based on their location, severity, and stage of healing.  The plan must protect the fracture site, promote bone healing, and gradually restore function to the affected area.  Document how fractures should influence the rehab plan.`, // eslint-disable-line max-len
 });
 
@@ -48,15 +49,7 @@ const considerPatientInfoFlow = ai.defineFlow(
     outputSchema: ConsiderPatientInfoOutputSchema,
   },
   async input => {
-    const {output} = await ai.generate({
-      model: openAI('gpt-4o-mini'),
-      prompt: {
-        text: `You are an expert physical therapist. Consider the following patient information and explain how medications and fractures should influence the rehabilitation plan.\n\nPatient Information:\nAge: ${input.age}\nGender: ${input.gender}\nNeck Control: ${input.neck}\nTrunk Control: ${input.trunk}\nStanding: ${input.standing}\nWalking: ${input.walking}\nMedications: ${input.medications}\nFractures: ${input.fractures}\n\nMedications Influence: Medications can impact a patient's energy levels, pain tolerance, and overall healing ability.  Certain medications may contraindicate specific exercises or require adjustments to the intensity and duration of the rehabilitation program.  Document how medications should influence the rehab plan.\n\nFractures Influence: Fractures significantly impact the rehabilitation plan based on their location, severity, and stage of healing.  The plan must protect the fracture site, promote bone healing, and gradually restore function to the affected area.  Document how fractures should influence the rehab plan.`
-      },
-      output: {
-        schema: ConsiderPatientInfoOutputSchema
-      }
-    });
+    const {output} = await prompt(input);
     return output!;
   }
 );
