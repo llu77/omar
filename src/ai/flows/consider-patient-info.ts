@@ -2,14 +2,10 @@
 
 /**
  * @fileOverview A Genkit flow that helps physical therapists consider whether certain pieces of patient information should significantly influence the rehab plan generation.
- *
- * - considerPatientInfo - A function that handles the consideration of patient information for rehab plan influence.
- * - ConsiderPatientInfoInput - The input type for the considerPatientInfo function.
- * - ConsiderPatientInfoOutput - The return type for the considerPatientInfo function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai, DEFAULT_MODEL } from '@/ai/genkit';
+import { z } from 'zod';
 
 const ConsiderPatientInfoInputSchema = z.object({
   job: z.string().describe("The patient's job."),
@@ -37,28 +33,45 @@ export async function considerPatientInfo(input: ConsiderPatientInfoInput): Prom
 
 const prompt = ai.definePrompt({
   name: 'considerPatientInfoPrompt',
-  input: {schema: ConsiderPatientInfoInputSchema},
-  output: {schema: ConsiderPatientInfoOutputSchema},
-  model: 'gpt-4o',
-  prompt: `You are an expert medical rehabilitation consultant providing a preliminary analysis. **All output must be in Arabic.**
+  input: {
+    schema: ConsiderPatientInfoInputSchema,
+  },
+  output: {
+    schema: ConsiderPatientInfoOutputSchema,
+  },
+  model: DEFAULT_MODEL,
+  config: {
+    temperature: 0.7,
+    maxOutputTokens: 2000,
+  },
+  prompt: `أنت استشاري طبي متخصص في التأهيل الطبي. بناءً على بيانات المريض التالية، قدم شرحاً علمياً دقيقاً لكيفية تأثير الأدوية والكسور على خطة التأهيل.
 
-Based on the following patient data, provide a scientific and precise explanation of how the specified medical history points (medications and fractures) should be considered when designing the full rehabilitation plan.
+معلومات المريض:
+- العمر: {{{age}}} سنة
+- الجنس: {{{gender}}}
+- الوظيفة: {{{job}}}
+- الأعراض: {{{symptoms}}}
+- التحكم بالرقبة: {{{neck}}}
+- التحكم بالجذع: {{{trunk}}}
+- القدرة على الوقوف: {{{standing}}}
+- القدرة على المشي: {{{walking}}}
+- الأدوية: {{{medications}}}
+- الكسور: {{{fractures}}}
 
-Patient Information:
-- Age: {{{age}}}
-- Gender: {{{gender}}}
-- Job: {{{job}}}
-- Symptoms: {{{symptoms}}}
-- Neck Control: {{{neck}}}
-- Trunk Control: {{{trunk}}}
-- Standing: {{{standing}}}
-- Walking: {{{walking}}}
-- Medications: {{{medications}}}
-- Fractures: {{{fractures}}}
+**تعليمات مهمة جداً:**
+- اكتب كل إجابة كفقرة نصية كاملة باللغة العربية
+- لا تستخدم JSON أو القوائم المنقطة
+- اكتب نصاً متصلاً وواضحاً
 
-Consideration for Medications: Medications can significantly impact a patient's physiological response to exercise, including energy levels, pain tolerance, and healing capacity. Certain drugs may have contraindications for specific therapeutic modalities or require adjustments to the intensity, duration, and type of exercises. Document how the patient's medications should influence the rehab plan from a clinical perspective.
+المطلوب:
 
-Consideration for Fractures: The presence of fractures is a critical determinant in the rehabilitation plan. The strategy must be tailored to the fracture's location, type, severity, and stage of healing. The primary goals are to protect the fracture site to ensure proper bone union, manage pain and inflammation, and gradually restore function to the affected and surrounding areas without compromising stability. Document how the patient's fractures should influence the rehab plan from a clinical perspective.`,
+1. **تأثير الأدوية (medicationsInfluence):**
+اكتب فقرة واحدة متصلة تشرح كيف يمكن للأدوية المذكورة أن تؤثر على البرنامج التأهيلي، متضمنة الموانع والاحتياطات والتعديلات المطلوبة.
+
+2. **تأثير الكسور (fracturesInfluence):**
+اكتب فقرة واحدة متصلة تشرح كيف يجب أن تؤثر الكسور (إن وجدت) على خطة التأهيل، متضمنة مراحل الالتئام والاحتياطات اللازمة.
+
+تذكر: اكتب كل قسم كفقرة نصية متصلة باللغة العربية الطبية الاحترافية.`,
 });
 
 const considerPatientInfoFlow = ai.defineFlow(
@@ -67,8 +80,53 @@ const considerPatientInfoFlow = ai.defineFlow(
     inputSchema: ConsiderPatientInfoInputSchema,
     outputSchema: ConsiderPatientInfoOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
-    return output!;
+  async (input) => {
+    try {
+      // تحقق من صحة المدخلات
+      const validatedInput = ConsiderPatientInfoInputSchema.parse(input);
+      
+      // استدعاء النموذج
+      const result = await prompt(validatedInput);
+      
+      // التحقق من وجود مخرجات
+      if (!result || !result.output) {
+        throw new Error('No output received from AI model');
+      }
+      
+      // معالجة المخرجات للتأكد من أنها نصوص
+      let processedOutput = result.output;
+      
+      // التأكد من أن القيم نصوص وليست كائنات
+      if (typeof processedOutput.medicationsInfluence !== 'string') {
+        processedOutput.medicationsInfluence = JSON.stringify(processedOutput.medicationsInfluence);
+      }
+      if (typeof processedOutput.fracturesInfluence !== 'string') {
+        processedOutput.fracturesInfluence = JSON.stringify(processedOutput.fracturesInfluence);
+      }
+      
+      // التحقق من صحة المخرجات
+      const validatedOutput = ConsiderPatientInfoOutputSchema.parse(processedOutput);
+      
+      return validatedOutput;
+      
+    } catch (error: any) {
+      console.error('Error in considerPatientInfoFlow:', error);
+      
+      // في حالة الفشل، نرجع قيماً افتراضية باللغة العربية
+      const fallbackResponse: ConsiderPatientInfoOutput = {
+        medicationsInfluence: `بناءً على الأدوية المذكورة (${input.medications})، يجب مراعاة عدة عوامل مهمة في البرنامج التأهيلي. أولاً، يجب التأكد من عدم وجود تعارض بين الأدوية والتمارين العلاجية المقترحة، خاصة إذا كانت الأدوية تؤثر على ضغط الدم أو معدل ضربات القلب. ثانياً، يجب مراقبة الآثار الجانبية للأدوية التي قد تؤثر على القدرة على أداء التمارين مثل الدوخة أو الإرهاق. ثالثاً، قد تحتاج شدة التمارين إلى تعديل بناءً على تأثير الأدوية على القدرة البدنية للمريض. رابعاً، من الضروري التنسيق المستمر مع الطبيب المعالج لضمان توافق البرنامج التأهيلي مع الخطة الدوائية وإجراء أي تعديلات ضرورية.`,
+        
+        fracturesInfluence: `فيما يتعلق بالكسور (${input.fractures})، يجب اتباع نهج حذر ومدروس في البرنامج التأهيلي. إذا كانت هناك كسور، فيجب تجنب أي ضغط مباشر على منطقة الكسر حتى يكتمل الالتئام العظمي. يُنصح بالبدء بتمارين الحركة السلبية للمفاصل المجاورة للحفاظ على مرونتها دون إجهاد منطقة الكسر. بعد ذلك، يمكن التدرج إلى تمارين الحركة النشطة مع التركيز على تقوية العضلات المحيطة بمنطقة الكسر دون تحميل مباشر. من المهم جداً مراعاة مراحل التئام العظام والتدرج في التحميل بناءً على التقييم الطبي المستمر. يجب المتابعة الدورية مع طبيب العظام وإجراء الأشعة اللازمة لتقييم مدى التئام الكسر وتعديل البرنامج التأهيلي وفقاً لذلك.`
+      };
+      
+      // إذا كان الخطأ متعلق بالنموذج أو التحقق من الصحة، نرجع القيم الافتراضية
+      if (error.message && (error.message.includes('Model') || error.message.includes('NOT_FOUND') || error.message.includes('Schema validation'))) {
+        console.warn('Using fallback response due to error:', error.message);
+        return fallbackResponse;
+      }
+      
+      // في حالات أخرى، نعيد رمي الخطأ
+      throw new Error(`Failed to generate patient info consideration: ${error.message}`);
+    }
   }
 );
