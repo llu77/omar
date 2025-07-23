@@ -93,8 +93,8 @@ export default function ReportPage() {
     } catch (error: any) {
       console.error("Error loading or generating report:", error);
       let message = "حدث خطأ غير متوقع.";
-      if (error.code === 'permission-denied' || error.message.includes('permission')) {
-          message = "ليس لديك الصلاحية لعرض هذا التقرير أو حدث خطأ في الصلاحيات. تأكد من أن قواعد الأمان في Firebase صحيحة.";
+       if (error.code === 'permission-denied' || error.message.includes('permission')) {
+          message = "ليس لديك الصلاحية لعرض هذا التقرير. تأكد من أنك تستخدم الحساب الصحيح وأن قواعد الأمان في Firebase مهيأة بشكل صحيح.";
       } else if (error.message.includes("not found")) {
         message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
       } else if (error.message.includes("AI")) {
@@ -119,9 +119,6 @@ export default function ReportPage() {
           userId: user.uid,
           createdAt: Timestamp.now(),
         };
-        // We don't need to save the name in the report document itself
-        // as we can retrieve it from the user's profile.
-        // delete (dataToSave as any).name;
 
         await setDoc(reportDocRef, dataToSave);
 
