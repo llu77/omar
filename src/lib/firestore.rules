@@ -10,37 +10,59 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function getUserRole() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+    
     function isTherapist() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'therapist';
+      return getUserRole() == 'therapist';
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return getUserRole() == 'admin';
+    }
+    
+    function isPatient() {
+      return getUserRole() == 'patient';
+    }
+    
+    function canAccessPatientData(patientId) {
+      return isAdmin() || isTherapist() || 
+        (isPatient() && request.auth.uid == patientId);
     }
     
     // Users collection
     match /users/{userId} {
+      // السماح للمستخدم بإنشاء document خاص به عند التسجيل
+      allow create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isOwner(userId) || isTherapist() || isAdmin();
-      allow create: if isAuthenticated();
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
     
     // Patients collection
     match /patients/{patientId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isTherapist() || 
+        isAdmin() || 
+        (isPatient() && resource.data.userId == request.auth.uid)
+      );
       allow create: if isTherapist() || isAdmin();
-      allow update: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin() || 
+        (isPatient() && resource.data.userId == request.auth.uid && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActive']));
       allow delete: if isAdmin();
     }
     
     // Assessments collection
     match /assessments/{assessmentId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (
+        isTherapist() || 
+        isAdmin() || 
+        (isPatient() && resource.data.patientId == request.auth.uid)
+      );
       allow create: if isTherapist() || isAdmin();
       allow update: if isTherapist() || isAdmin();
       allow delete: if isAdmin();
@@ -48,10 +70,56 @@ service cloud.firestore {
     
     // Reports collection
     match /reports/{reportId} {
+      allow read: if isAuthenticated() && (
+        isTherapist() || 
+        isAdmin() || 
+        (isPatient() && resource.data.patientId == request.auth.uid)
+      );
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Sessions collection
+    match /sessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        isTherapist() || 
+        isAdmin() || 
+        (isPatient() && resource.data.patientId == request.auth.uid)
+      );
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin() ||
+        (isPatient() && resource.data.patientId == request.auth.uid && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['patientNotes', 'completedAt']));
+      allow delete: if isAdmin();
+    }
+    
+    // Exercises collection
+    match /exercises/{exerciseId} {
       allow read: if isAuthenticated();
       allow create: if isTherapist() || isAdmin();
       allow update: if isTherapist() || isAdmin();
       allow delete: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isOwner(resource.data.userId) && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    // Settings collection
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Temporary collection for initial setup
+    match /temp/{document=**} {
+      allow read, write: if isAuthenticated();
     }
   }
 }
