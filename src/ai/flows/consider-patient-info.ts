@@ -39,8 +39,26 @@ const prompt = ai.definePrompt({
   name: 'considerPatientInfoPrompt',
   input: {schema: ConsiderPatientInfoInputSchema},
   output: {schema: ConsiderPatientInfoOutputSchema},
-  model: 'openai/gpt-4o-mini',
-  prompt: `You are an expert physical therapist. Consider the following patient information and explain how medications and fractures should influence the rehabilitation plan. **All output must be in Arabic.**\n\nPatient Information:\nAge: {{{age}}}\nGender: {{{gender}}}\nNeck Control: {{{neck}}}\nTrunk Control: {{{trunk}}}\nStanding: {{{standing}}}\nWalking: {{{walking}}}\nMedications: {{{medications}}}\nFractures: {{{fractures}}}\n\nMedications Influence: Medications can impact a patient's energy levels, pain tolerance, and overall healing ability.  Certain medications may contraindicate specific exercises or require adjustments to the intensity and duration of the rehabilitation program.  Document how medications should influence the rehab plan.\n\nFractures Influence: Fractures significantly impact the rehabilitation plan based on their location, severity, and stage of healing.  The plan must protect the fracture site, promote bone healing, and gradually restore function to the affected area.  Document how fractures should influence the rehab plan.`,
+  model: 'gpt-4o-mini',
+  prompt: `You are an expert medical rehabilitation consultant providing a preliminary analysis. **All output must be in Arabic.**
+
+Based on the following patient data, provide a scientific and precise explanation of how the specified medical history points (medications and fractures) should be considered when designing the full rehabilitation plan.
+
+Patient Information:
+- Age: {{{age}}}
+- Gender: {{{gender}}}
+- Job: {{{job}}}
+- Symptoms: {{{symptoms}}}
+- Neck Control: {{{neck}}}
+- Trunk Control: {{{trunk}}}
+- Standing: {{{standing}}}
+- Walking: {{{walking}}}
+- Medications: {{{medications}}}
+- Fractures: {{{fractures}}}
+
+Consideration for Medications: Medications can significantly impact a patient's physiological response to exercise, including energy levels, pain tolerance, and healing capacity. Certain drugs may have contraindications for specific therapeutic modalities or require adjustments to the intensity, duration, and type of exercises. Document how the patient's medications should influence the rehab plan from a clinical perspective.
+
+Consideration for Fractures: The presence of fractures is a critical determinant in the rehabilitation plan. The strategy must be tailored to the fracture's location, type, severity, and stage of healing. The primary goals are to protect the fracture site to ensure proper bone union, manage pain and inflammation, and gradually restore function to the affected and surrounding areas without compromising stability. Document how the patient's fractures should influence the rehab plan from a clinical perspective.`,
 });
 
 const considerPatientInfoFlow = ai.defineFlow(

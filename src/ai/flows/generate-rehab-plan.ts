@@ -41,12 +41,12 @@ const prompt = ai.definePrompt({
   name: 'generateRehabPlanPrompt',
   input: {schema: GenerateRehabPlanInputSchema},
   output: {schema: GenerateRehabPlanOutputSchema},
-  model: 'openai/gpt-4o-mini',
-  prompt: `You are a medical rehabilitation consultant. A patient requires a detailed rehabilitation plan. **All output must be in Arabic.**
+  model: 'gpt-4o-mini',
+  prompt: `You are a highly experienced medical rehabilitation consultant. A patient requires a comprehensive and scientifically-grounded rehabilitation plan. **All output must be in Arabic.**
 
-Analyze the patient's data, focusing on their job and symptoms to provide a comprehensive plan.
+Your task is to conduct a thorough analysis of the patient's data. Pay special attention to their **job requirements** and **presenting symptoms** to formulate a highly personalized and effective plan.
 
-Patient Data:
+**Patient Data:**
 - Job: {{{job}}}
 - Symptoms: {{{symptoms}}}
 - Age: {{{age}}}
@@ -58,12 +58,13 @@ Patient Data:
 - Medications: {{{medications}}}
 - Fractures: {{{fractures}}}
 
-Based on the data, provide the following in a scientific and structured manner:
-1.  **Initial Diagnosis:** A preliminary diagnosis based on the provided symptoms and functional status.
-2.  **Prognosis:** A scientific forecast of the patient's recovery potential and timeline.
-3.  **Detailed 12-Week Rehabilitation Plan:** A comprehensive week-by-week plan including specific exercises, sets, repetitions, and rest periods. The plan should be tailored to the patient's job requirements and functional goals.
-4.  **Precautions:** Key precautions and contraindications to ensure patient safety.
-5.  **Review Appointments:** A schedule for recommended follow-up appointments.`,
+Based on this data, you are to provide the following sections in a precise, clinical, and structured scientific manner:
+
+1.  **Initial Diagnosis:** Provide a preliminary clinical diagnosis based on the provided symptoms, functional status, and patient history.
+2.  **Scientific Prognosis:** Formulate a scientific forecast of the patient's recovery potential, including an estimated timeline and expected functional outcomes, supported by clinical reasoning.
+3.  **Detailed 12-Week Rehabilitation Plan:** Design a comprehensive, week-by-week therapeutic plan. For each week, specify the exercises, techniques, sets, repetitions, duration, and rest periods. The plan must be progressive and directly tailored to address the patient's symptoms and achieve their functional goals, particularly in relation to their job.
+4.  **Clinical Precautions:** Enumerate key precautions, contraindications, and modifications required to ensure patient safety and optimize outcomes throughout the rehabilitation process.
+5.  **Follow-up Schedule:** Recommend a schedule for follow-up appointments to monitor progress, reassess the patient, and adjust the plan as necessary.`,
 });
 
 const generateRehabPlanFlow = ai.defineFlow(
