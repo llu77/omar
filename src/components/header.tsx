@@ -27,7 +27,7 @@ import { useTheme } from "next-themes";
 
 const UserNavigation = [
   { name: "تقييم جديد", href: "/assessment", icon: Plus },
-  { name: "تقاريري", href: "/report", icon: BarChart },
+  { name: "تقاريري", href: "/retrieve", icon: BarChart },
   { name: "البحث", href: "/retrieve", icon: Search },
 ];
 
