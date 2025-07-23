@@ -21,9 +21,9 @@ export function Logo({
           {/* Outer Circle */}
           <circle cx="50" cy="50" r="45" stroke="hsl(var(--primary))" strokeWidth="8" />
 
-          {/* Corrected 'W' with EKG Pulse */}
+          {/* Clean, professional 'W' */}
           <path
-            d="M25 35L40 65L47 50L53 50L60 35L75 65"
+            d="M25 35 L40 65 L50 45 L60 65 L75 35"
             stroke="hsl(var(--primary))"
             strokeWidth="8"
             strokeLinecap="round"
