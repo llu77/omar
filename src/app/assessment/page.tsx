@@ -39,6 +39,8 @@ import { auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/logo";
 import { Progress } from "@/components/ui/progress";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب (حرفين على الأقل)"),
@@ -86,6 +88,7 @@ export default function AssessmentPage() {
   const [user, loading] = useAuthState(auth);
   const [currentStep, setCurrentStep] = useState(1);
   const [formProgress, setFormProgress] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -111,6 +114,10 @@ export default function AssessmentPage() {
       medications_details: "",
       fractures: undefined,
       fractures_details: "",
+      neck: undefined,
+      trunk: undefined,
+      standing: undefined,
+      walking: undefined,
     },
     mode: "onTouched",
   });
@@ -118,52 +125,75 @@ export default function AssessmentPage() {
   const watchedFields = useWatch({ control: form.control });
 
   useEffect(() => {
-    const totalFields = Object.keys(form.getValues()).length - 2; // Exclude optional details fields initially
+    const totalFields = Object.keys(form.getValues()).length - 2;
     const filledFields = Object.values(watchedFields).filter(value => value !== "" && value !== undefined).length;
     setFormProgress((filledFields / totalFields) * 100);
   }, [watchedFields, form]);
-  
 
   const nextStep = async () => {
     const fieldsToValidate = steps[currentStep - 1].fields;
     const isValid = await form.trigger(fieldsToValidate as any);
     if (isValid) {
       setCurrentStep(prev => prev + 1);
+      setSubmitError(null);
     }
   };
 
   const prevStep = () => {
     setCurrentStep(prev => prev - 1);
+    setSubmitError(null);
   };
 
   function onSubmit(values: FormValues) {
-    startTransition(() => {
+    setSubmitError(null);
+    
+    startTransition(async () => {
       try {
+        // التحقق من جميع الحقول المطلوبة
+        if (!values.job || !values.symptoms) {
+          setSubmitError("يرجى التأكد من ملء جميع الحقول المطلوبة");
+          return;
+        }
+
         const patientData: PatientDataForAI = {
           fileNumber,
-          name: values.name,
+          name: values.name.trim(),
           age: parseInt(values.age, 10),
           gender: values.gender,
-          job: values.job,
-          symptoms: values.symptoms,
+          job: values.job.trim(),
+          symptoms: values.symptoms.trim(),
           neck: values.neck,
           trunk: values.trunk,
           standing: values.standing,
           walking: values.walking,
-          medications: values.medications === "yes" ? `نعم - ${values.medications_details}` : "لا",
-          fractures: values.fractures === "yes" ? `نعم - ${values.fractures_details}` : "لا",
+          medications: values.medications === "yes" 
+            ? `نعم - ${values.medications_details?.trim() || 'لم يتم تحديد التفاصيل'}` 
+            : "لا",
+          fractures: values.fractures === "yes" 
+            ? `نعم - ${values.fractures_details?.trim() || 'لم يتم تحديد التفاصيل'}` 
+            : "لا",
         };
 
-        localStorage.setItem(`report-${fileNumber}`, JSON.stringify(patientData));
+        // حفظ في localStorage مع timestamp
+        const dataToSave = {
+          ...patientData,
+          createdAt: new Date().toISOString(),
+        };
+        
+        localStorage.setItem(`report-${fileNumber}`, JSON.stringify(dataToSave));
+        
         toast({
           title: "تم حفظ البيانات بنجاح ✓",
           description: `جاري توجيهك لصفحة التقرير للملف رقم: ${fileNumber}`,
         });
+        
         router.push(`/report/${fileNumber}`);
-      } catch (error) {
+      } catch (error: any) {
+        console.error('Form submission error:', error);
+        setSubmitError(error.message || "حدث خطأ في حفظ البيانات");
         toast({
           variant: "destructive",
-          title: "خطأ في الحفظ المحلي",
+          title: "خطأ في الحفظ",
           description: "لم نتمكن من حفظ بيانات النموذج. يرجى المحاولة مرة أخرى.",
         });
       }
@@ -256,6 +286,14 @@ export default function AssessmentPage() {
         <Progress value={formProgress} className="h-2" />
       </div>
 
+      {submitError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>خطأ</AlertTitle>
+          <AlertDescription>{submitError}</AlertDescription>
+        </Alert>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           
@@ -305,7 +343,7 @@ export default function AssessmentPage() {
                     <FormItem>
                       <FormLabel>مهنة المريض <span className="text-red-500">*</span></FormLabel>
                       <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
-                      <FormDescription>المهنة    .</FormDescription>
+                      <FormDescription>المهنة مهمة لتخصيص التمارين الوظيفية.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}/>
@@ -335,7 +373,7 @@ export default function AssessmentPage() {
                   تقييم الحالة الوظيفية والحركية
                 </CardTitle>
                 <CardDescription>
-                  تقييم القدرات الحركية الحالية للمريض   .
+                  تقييم القدرات الحركية الحالية للمريض يساعد في تحديد نقطة البداية المناسبة.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
@@ -386,7 +424,7 @@ export default function AssessmentPage() {
                       <FormField control={form.control} name="medications_details" render={({ field }) => (
                         <FormItem className="animate-in slide-in-from-top-4">
                           <FormLabel>تفاصيل الأدوية <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات " {...field} /></FormControl>
+                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}/>

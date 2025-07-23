@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { FileSearch, Search, Loader2, Cloud, Database } from "lucide-react";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SavedReport {
   fileNumber: string;
@@ -28,6 +28,7 @@ export default function RetrievePage() {
   const [allReports, setAllReports] = useState<SavedReport[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
   const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
   const [user, authLoading] = useAuthState(auth);
@@ -42,16 +43,17 @@ export default function RetrievePage() {
 
   const loadAllReports = async (userId: string) => {
     setIsLoadingReports(true);
+    setError(null);
     const reportsMap = new Map<string, SavedReport>();
 
     // 1. Load from localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('report-')) {
-        try {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('report-')) {
           const data = JSON.parse(localStorage.getItem(key) || '{}');
           if (data.fileNumber && data.name) {
-             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
+             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
             reportsMap.set(data.fileNumber, {
               fileNumber: data.fileNumber,
               patientName: data.name,
@@ -59,31 +61,27 @@ export default function RetrievePage() {
               source: 'local',
             });
           }
-        } catch (e) { console.error('Error parsing local report:', e); }
+        }
       }
-    }
+    } catch (e) { console.error('Error parsing local reports:', e); }
 
-    // 2. Load from Firebase and merge
+    // 2. Load from Firebase and merge/overwrite
     try {
-      const q = query(collection(db, 'reports'), where('userId', '==', userId));
+      const q = query(collection(db, 'reports'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
-        reportsMap.set(data.fileNumber, { // Overwrites local if exists, as cloud is more authoritative
+        reportsMap.set(data.fileNumber, {
           fileNumber: data.fileNumber,
           patientName: data.patientName,
           createdAt: createdAt,
           source: 'cloud',
         });
       });
-    } catch (error) {
-      console.error('Error loading cloud reports:', error);
-      toast({
-        variant: "destructive",
-        title: "خطأ في الاتصال",
-        description: "فشل تحميل التقارير المحفوظة في السحابة. قد تظهر التقارير المحلية فقط."
-      })
+    } catch (firebaseError) {
+      console.error('Error loading cloud reports:', firebaseError);
+      setError("فشل تحميل التقارير المحفوظة في السحابة. قد تظهر التقارير المحلية فقط.");
     }
     
     const sortedReports = Array.from(reportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -94,11 +92,11 @@ export default function RetrievePage() {
   const handleRetrieve = (e: React.FormEvent) => {
     e.preventDefault();
     startSearchTransition(() => {
-      if (!fileNumber.trim()) {
+      const trimmedFileNumber = fileNumber.trim();
+      if (!trimmedFileNumber) {
         toast({ variant: "destructive", title: "خطأ", description: "الرجاء إدخال رقم الملف." });
         return;
       }
-      const trimmedFileNumber = fileNumber.trim();
       router.push(`/report/${trimmedFileNumber}`);
     });
   };
@@ -107,19 +105,10 @@ export default function RetrievePage() {
     router.push(`/report/${reportFileNumber}`);
   };
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading) {
     return (
       <div className="max-w-4xl mx-auto space-y-8">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-6 w-1/2 mt-2" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-12 w-full mb-4" />
-            <Skeleton className="h-48 w-full" />
-          </CardContent>
-        </Card>
+        <Skeleton className="h-[450px] w-full" />
       </div>
     );
   }
@@ -129,7 +118,7 @@ export default function RetrievePage() {
       <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-primary/10">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center gap-3">
-            <FileSearch className="h-8 w-8" />
+            <div className="w-8 h-8"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
             استعادة التقارير الطبية
           </CardTitle>
           <CardDescription className="text-lg">
@@ -154,7 +143,7 @@ export default function RetrievePage() {
                   disabled={isSearching}
                 />
                 <Button type="submit" size="lg" disabled={isSearching}>
-                  {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
+                  {isSearching ? <div className="h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div> : <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>}
                 </Button>
               </div>
             </form>
@@ -164,6 +153,13 @@ export default function RetrievePage() {
 
           <div>
             <h3 className="text-lg font-semibold mb-4">التقارير الأخيرة</h3>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <div className="h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+                <AlertTitle>خطأ في الاتصال</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             {isLoadingReports ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
@@ -183,8 +179,8 @@ export default function RetrievePage() {
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
                         {report.source === 'cloud' 
-                          ? <Cloud className="h-5 w-5 text-blue-500" title="محفوظ في السحابة" /> 
-                          : <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً" />}
+                          ? <div className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div> 
+                          : <div className="h-5 w-5 text-green-500" title="محفوظ محلياً"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></div>}
                         <div>
                           <p className="font-semibold">{report.patientName}</p>
                           <p className="text-sm text-muted-foreground">
