@@ -31,6 +31,7 @@ type ReportGenerationState = 'idle' | 'considering' | 'generating' | 'done' | 'e
 
 export default function ReportPage({ params }: { params: { fileNumber: string } }) {
   const router = useRouter();
+  const { fileNumber } = params;
   const { toast } = useToast();
   const [user, loading] = useAuthState(auth);
   const [isSaving, startSavingTransition] = useTransition();
@@ -78,7 +79,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
 
   useEffect(() => {
     try {
-      const data = localStorage.getItem(`report-${params.fileNumber}`);
+      const data = localStorage.getItem(`report-${fileNumber}`);
       if (data) {
         const parsedData = JSON.parse(data);
         setPatientData(parsedData);
@@ -93,7 +94,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
       setGenerationState('error');
       setError("فشل في قراءة بيانات المريض من التخزين المحلي.");
     }
-  }, [params.fileNumber, runAIFlows, generationState]);
+  }, [fileNumber, runAIFlows, generationState]);
 
   const handleSaveReport = () => {
     if (!rehabPlan || !patientData || !user) return;
