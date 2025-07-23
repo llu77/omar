@@ -38,13 +38,6 @@ const features = [
   }
 ];
 
-const stats = [
-  { value: "500+", label: "مستخدم نشط" },
-  { value: "2000+", label: "تقرير تم إنشاؤه" },
-  { value: "98%", label: "رضا المستخدمين" },
-  { value: "24/7", label: "متاح دائماً" }
-];
-
 export default function Home() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
@@ -166,29 +159,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 sm:py-32 px-4">
-        <div className="container mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.5 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, amount: 0.5 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center p-4 rounded-lg hover:bg-secondary/50 transition-colors"
-              >
-                <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-muted-foreground font-medium">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 sm:py-32 px-4 bg-primary/5">
         <div className="container mx-auto text-center">
@@ -202,11 +172,11 @@ export default function Home() {
               جاهز لتعزيز ممارستك الطبية؟
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              انضم إلى مئات المختصين الذين يستخدمون وصّل يومياً لتحسين نتائج مرضاهم وتوفير الوقت.
+              انضم إلى  المختصين الذين يستخدمون وصّل يومياً لتحسين نتائج مرضاهم وتوفير الوقت.
             </p>
             <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full font-semibold shadow-lg hover:shadow-primary/30 transition-shadow">
               <Link href={user ? "/assessment" : "/register"}>
-                إنشاء حساب مجاني
+                إنشاء حساب 
                 <ArrowRight className="mr-2 h-5 w-5" />
               </Link>
             </Button>

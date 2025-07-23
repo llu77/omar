@@ -255,7 +255,7 @@ export default function AssessmentPage() {
           نموذج تقييم المريض
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          نظام الذكاء الاصطناعي الطبي لتوليد خطط تأهيلية مخصصة
+          نظام  وصّل لتوليد خطط تأهيلية مخصصة
         </p>
       </div>
 
@@ -316,7 +316,7 @@ export default function AssessmentPage() {
                     <FormItem>
                       <FormLabel>مهنة المريض <span className="text-red-500">*</span></FormLabel>
                       <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
-                      <FormDescription>المهنة مهمة لتخصيص البرنامج التأهيلي.</FormDescription>
+                      <FormDescription>المهنة    .</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}/>
@@ -346,7 +346,7 @@ export default function AssessmentPage() {
                   تقييم الحالة الوظيفية والحركية
                 </CardTitle>
                 <CardDescription>
-                  تقييم القدرات الحركية الحالية للمريض لتحديد خط الأساس.
+                  تقييم القدرات الحركية الحالية للمريض   .
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
@@ -397,7 +397,7 @@ export default function AssessmentPage() {
                       <FormField control={form.control} name="medications_details" render={({ field }) => (
                         <FormItem className="animate-in slide-in-from-top-4">
                           <FormLabel>تفاصيل الأدوية <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات والغرض من كل دواء" {...field} /></FormControl>
+                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات " {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}/>
@@ -414,7 +414,7 @@ export default function AssessmentPage() {
                       <FormField control={form.control} name="fractures_details" render={({ field }) => (
                         <FormItem className="animate-in slide-in-from-top-4">
                           <FormLabel>تفاصيل الكسور <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Textarea placeholder="يرجى تحديد موقع الكسر وتاريخه ومرحلة الشفاء الحالية" {...field} /></FormControl>
+                          <FormControl><Textarea placeholder="يرجى تحديد موقع الكسر ومرحلة الشفاء الحالية" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}/>

@@ -170,10 +170,10 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
-              تقرير التأهيل الطبي
+              تقرير وصّل 
             </h1>
             <p className="text-muted-foreground mt-2">
-              تقرير تم إنشاؤه بواسطة الذكاء الاصطناعي - نظام وصّل
+              تقرير تم إنشاؤه بواسطة الذكاء الاصطناعي - وصّل
             </p>
           </div>
           <div className="flex gap-2 no-print">
@@ -226,7 +226,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
               </div>
               <Separator />
               <div>
-                <h3 className="font-semibold text-lg mb-2">التوقعات العلمية للحالة (Prognosis)</h3>
+                <h3 className="font-semibold text-lg mb-2">التنبؤ للحالة (Prognosis)</h3>
                 <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{rehabPlan.prognosis}</p>
               </div>
             </CardContent>
@@ -237,7 +237,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Activity />خطة التأهيل الشاملة</CardTitle>
-              <CardDescription>برنامج علاجي مفصل لمدة 12 أسبوع</CardDescription>
+              <CardDescription>برنامج علاجي مفصل   </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="prose dark:prose-invert max-w-none">
