@@ -34,7 +34,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, Shield, User, FileText, Bot, Briefcase, Stethoscope } from "lucide-react";
+import { Activity, Shield, User, FileText, Bot, Briefcase, Stethoscope, Sparkles, UserCheck, HeartPulse, Bone } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
@@ -174,161 +174,102 @@ export default function AssessmentPage() {
 
 
   return (
-    <Card className="w-full mx-auto max-w-4xl shadow-2xl">
-      <CardHeader>
-        <CardTitle className="text-3xl font-headline flex items-center gap-3">
+    <div className="w-full mx-auto max-w-5xl">
+      <div className="text-center mb-10">
+        <h1 className="text-4xl font-bold font-headline flex items-center justify-center gap-3">
             <FileText />
             نموذج تقييم المريض
-        </CardTitle>
-        <CardDescription>
-          الرجاء إدخال بيانات المريض بدقة لتوليد خطة تأهيلية مناسبة.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="p-6 border rounded-lg bg-primary/5">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><User /> معلومات أساسية</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>اسم المريض</FormLabel>
-                          <FormControl><Input placeholder="الاسم الكامل" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="age"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>العمر</FormLabel>
-                          <FormControl><Input type="number" placeholder="بالسنوات" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="gender"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>الجنس</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger><SelectValue placeholder="اختر الجنس" /></SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="male">ذكر</SelectItem>
-                              <SelectItem value="female">أنثى</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </div>
-                <div className="mt-4">
-                    <FormLabel>رقم الملف</FormLabel>
-                    <Input disabled value={fileNumber} className="mt-2 bg-muted/50" />
-                </div>
-            </div>
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          الرجاء إدخال بيانات المريض بدقة لتوليد خطة تأهيلية مخصصة بواسطة الذكاء الاصطناعي.
+        </p>
+      </div>
 
-            <div className="p-6 border rounded-lg bg-primary/5">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><Briefcase /> المهنة والأعراض</h3>
-                <div className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="job"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>مهنة المريض</FormLabel>
-                          <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="symptoms"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>وصف الأعراض</FormLabel>
-                          <FormControl><Textarea placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                </div>
-            </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-12">
+            
+            <Card className="bg-secondary/30 border-primary/20">
+                <CardHeader><CardTitle className="flex items-center gap-3 text-primary"><UserCheck />المعلومات الأساسية والشخصية</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <FormField control={form.control} name="name" render={({ field }) => (
+                            <FormItem><FormLabel>اسم المريض</FormLabel><FormControl><Input placeholder="الاسم الكامل" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="age" render={({ field }) => (
+                            <FormItem><FormLabel>العمر</FormLabel><FormControl><Input type="number" placeholder="بالسنوات" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="gender" render={({ field }) => (
+                            <FormItem><FormLabel>الجنس</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="اختر الجنس" /></SelectTrigger></FormControl>
+                                <SelectContent><SelectItem value="male">ذكر</SelectItem><SelectItem value="female">أنثى</SelectItem></SelectContent>
+                            </Select><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField control={form.control} name="job" render={({ field }) => (
+                            <FormItem><FormLabel>مهنة المريض</FormLabel><FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <div>
+                            <FormLabel>رقم الملف</FormLabel>
+                            <Input disabled value={fileNumber} className="mt-2 bg-muted/50 border-dashed" />
+                        </div>
+                    </div>
+                    <FormField control={form.control} name="symptoms" render={({ field }) => (
+                        <FormItem><FormLabel>وصف الأعراض الرئيسية</FormLabel><FormControl><Textarea placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." {...field} rows={4} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                </CardContent>
+            </Card>
 
+            <Card className="bg-secondary/30 border-primary/20">
+                <CardHeader><CardTitle className="flex items-center gap-3 text-primary"><Activity />تقييم الحالة الوظيفية والحركية</CardTitle></CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <FormItem><FormLabel>التحكم بالرقبة</FormLabel>{renderRadioGroup("neck", radioOptions.control)}<FormMessage className="mt-2">{form.formState.errors.neck?.message}</FormMessage></FormItem>
+                    <FormItem><FormLabel>التحكم بالجذع</FormLabel>{renderRadioGroup("trunk", radioOptions.control)}<FormMessage className="mt-2">{form.formState.errors.trunk?.message}</FormMessage></FormItem>
+                    <FormItem><FormLabel>الوقوف</FormLabel>{renderRadioGroup("standing", radioOptions.assistance)}<FormMessage className="mt-2">{form.formState.errors.standing?.message}</FormMessage></FormItem>
+                    <FormItem><FormLabel>المشي</FormLabel>{renderRadioGroup("walking", radioOptions.assistance)}<FormMessage className="mt-2">{form.formState.errors.walking?.message}</FormMessage></FormItem>
+                </CardContent>
+            </Card>
 
-            <div className="p-6 border rounded-lg bg-primary/5">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><Activity /> الحالة الوظيفية</h3>
-                <div className="space-y-6">
-                  <FormItem><FormLabel>التحكم بالرقبة</FormLabel>{renderRadioGroup("neck", radioOptions.control)}<FormMessage className="mt-2">{form.formState.errors.neck?.message}</FormMessage></FormItem>
-                  <FormItem><FormLabel>التحكم بالجذع</FormLabel>{renderRadioGroup("trunk", radioOptions.control)}<FormMessage className="mt-2">{form.formState.errors.trunk?.message}</FormMessage></FormItem>
-                  <FormItem><FormLabel>الوقوف</FormLabel>{renderRadioGroup("standing", radioOptions.assistance)}<FormMessage className="mt-2">{form.formState.errors.standing?.message}</FormMessage></FormItem>
-                  <FormItem><FormLabel>المشي</FormLabel>{renderRadioGroup("walking", radioOptions.assistance)}<FormMessage className="mt-2">{form.formState.errors.walking?.message}</FormMessage></FormItem>
-                </div>
-            </div>
-
-            <div className="p-6 border rounded-lg bg-primary/5">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><Shield /> التاريخ الطبي</h3>
-                <div className="space-y-6">
-                    <FormItem>
-                        <FormLabel>هل يتناول المريض أي أدوية؟</FormLabel>
-                        {renderRadioGroup("medications", radioOptions.yesNo)}
-                        <FormMessage className="mt-2">{form.formState.errors.medications?.message}</FormMessage>
-                    </FormItem>
-                    {watchMedications === 'yes' && (
-                      <FormField
-                        control={form.control}
-                        name="medications_details"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>تفاصيل الأدوية</FormLabel>
-                            <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    <FormItem>
-                        <FormLabel>هل يعاني المريض من أي كسور؟</FormLabel>
-                        {renderRadioGroup("fractures", radioOptions.yesNo)}
-                        <FormMessage className="mt-2">{form.formState.errors.fractures?.message}</FormMessage>
-                    </FormItem>
-                     {watchFractures === 'yes' && (
-                      <FormField
-                        control={form.control}
-                        name="fractures_details"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>تفاصيل الكسور</FormLabel>
-                            <FormControl><Textarea placeholder="يرجى تحديد موقع الكسر وتاريخه" {...field} /></FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                </div>
-            </div>
+            <Card className="bg-secondary/30 border-primary/20">
+                <CardHeader><CardTitle className="flex items-center gap-3 text-primary"><HeartPulse />التاريخ الطبي</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-2"><Shield size={16}/> هل يتناول المريض أي أدوية؟</FormLabel>
+                                {renderRadioGroup("medications", radioOptions.yesNo)}
+                                <FormMessage className="mt-2">{form.formState.errors.medications?.message}</FormMessage>
+                            </FormItem>
+                            {watchMedications === 'yes' && (
+                            <FormField control={form.control} name="medications_details" render={({ field }) => (
+                                <FormItem className="mt-4"><FormLabel>تفاصيل الأدوية</FormLabel><FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            )}
+                        </div>
+                        <div>
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-2"><Bone size={16}/> هل يعاني المريض من أي كسور؟</FormLabel>
+                                {renderRadioGroup("fractures", radioOptions.yesNo)}
+                                <FormMessage className="mt-2">{form.formState.errors.fractures?.message}</FormMessage>
+                            </FormItem>
+                            {watchFractures === 'yes' && (
+                            <FormField control={form.control} name="fractures_details" render={({ field }) => (
+                                <FormItem className="mt-4"><FormLabel>تفاصيل الكسور</FormLabel><FormControl><Textarea placeholder="يرجى تحديد موقع الكسر وتاريخه" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isPending}>
-                <Bot className="ml-2" />
-                {isPending ? "جاري التوليد..." : "توليد خطة تأهيلية"}
+              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isPending} className="w-full md:w-auto">
+                <Sparkles className="ml-2" />
+                {isPending ? "جاري تحليل البيانات..." : "توليد الخطة التأهيلية بالذكاء الاصطناعي"}
               </Button>
             </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+        </form>
+      </Form>
+    </div>
   );
 }

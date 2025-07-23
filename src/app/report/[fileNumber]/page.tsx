@@ -21,7 +21,7 @@ import { considerPatientInfo } from "@/ai/flows/consider-patient-info";
 import type { ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
 import { generateRehabPlan } from "@/ai/flows/generate-rehab-plan";
 import type { GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
-import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart, Briefcase, Stethoscope, Activity, FilePlus } from "lucide-react";
+import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart, Stethoscope, Activity, FilePlus, BrainCircuit, Target, Shield, HeartPulse, Bone, Briefcase } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -82,10 +82,10 @@ export default function ReportPage({
   const renderFormattedPlan = (text: string) => {
     // Replace markdown-like bolding with strong tags
     const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    const sections = formattedText.split(/(\d+\.\s+<strong>Week \d+.*?<\/strong>)/).filter(Boolean);
+    const sections = formattedText.split(/(\d+\.\s+<strong>.*?<\/strong>)/).filter(Boolean);
   
     if (sections.length <= 1) {
-        return <div dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
+        return <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
     }
   
     return (
@@ -96,7 +96,7 @@ export default function ReportPage({
 
                 return (
                     <AccordionItem value={`item-${index}`} key={index}>
-                        <AccordionTrigger className="text-lg font-semibold" dangerouslySetInnerHTML={{ __html: title }} />
+                        <AccordionTrigger className="text-lg font-semibold text-primary-foreground" dangerouslySetInnerHTML={{ __html: title }} />
                         <AccordionContent>
                            <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }} />
                         </AccordionContent>
@@ -110,14 +110,19 @@ export default function ReportPage({
   if (loading) {
      return (
         <div className="space-y-6">
-          <Card className="shadow-lg">
+          <Card className="bg-secondary/30 text-center p-8">
             <CardHeader>
-              <CardTitle className="text-3xl font-headline flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Bot />
-                  جاري إنشاء تقرير التأهيل الطبي...
+              <div className="flex justify-center items-center mb-4">
+                 <div className="relative w-24 h-24">
+                    <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse"></div>
+                    <div className="absolute inset-2 bg-primary/20 rounded-full animate-pulse [animation-delay:0.2s]"></div>
+                    <div className="absolute inset-4 bg-card border-2 border-primary/50 rounded-full flex items-center justify-center">
+                        <Bot className="text-primary w-12 h-12" />
+                    </div>
                 </div>
-                <Skeleton className="h-8 w-40" />
+              </div>
+              <CardTitle className="text-3xl font-headline">
+                جاري إنشاء تقرير التأهيل الطبي...
               </CardTitle>
               <CardDescription>
                 يقوم الذكاء الاصطناعي بتحليل البيانات الآن. قد يستغرق هذا بضع لحظات.
@@ -129,10 +134,9 @@ export default function ReportPage({
             <Skeleton className="h-48 w-full" />
           </div>
           <div className="space-y-4">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-24 w-full" />
               <Skeleton className="h-48 w-full" />
-              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-24 w-full" />
           </div>
         </div>
       )
@@ -149,8 +153,8 @@ export default function ReportPage({
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="shadow-lg">
+    <div className="space-y-8">
+      <Card className="bg-secondary/30">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -165,81 +169,123 @@ export default function ReportPage({
         </CardHeader>
       </Card>
       
-      {patientData && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><User />ملخص بيانات المريض</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
-              <div><strong className="block text-muted-foreground">الاسم</strong> {patientData.name}</div>
-              <div><strong className="block text-muted-foreground">العمر</strong> {patientData.age}</div>
-              <div><strong className="block text-muted-foreground">الجنس</strong> {patientData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
-              <div><strong className="block text-muted-foreground">المهنة</strong> {patientData.job}</div>
-              <div className="col-span-full"><strong className="block text-muted-foreground">الأعراض</strong> {patientData.symptoms}</div>
-              <Separator className="col-span-full my-2"/>
-              <div><strong className="block text-muted-foreground">تحكم الرقبة</strong> {patientData.neck}</div>
-              <div><strong className="block text-muted-foreground">تحكم الجذع</strong> {patientData.trunk}</div>
-              <div><strong className="block text-muted-foreground">الوقوف</strong> {patientData.standing}</div>
-              <div><strong className="block text-muted-foreground">المشي</strong> {patientData.walking}</div>
-              <Separator className="col-span-full my-2"/>
-              <div className="col-span-full"><strong className="block text-muted-foreground">الأدوية</strong> {patientData.medications}</div>
-              <div className="col-span-full"><strong className="block text-muted-foreground">الكسور</strong> {patientData.fractures}</div>
-          </CardContent>
-        </Card>
-      )}
-
-      {consideration && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-accent"><Lightbulb />اعتبارات الخطة العلاجية (تحليل أولي)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">تأثير الأدوية:</h4>
-              <p className="text-muted-foreground">{consideration.medicationsInfluence}</p>
-            </div>
-            <Separator />
-            <div>
-              <h4 className="font-semibold mb-2">تأثير الكسور:</h4>
-              <p className="text-muted-foreground">{consideration.fracturesInfluence}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {rehabPlan && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><Stethoscope /> التشخيص المبدئي</CardTitle></CardHeader>
-            <CardContent><p>{rehabPlan.initialDiagnosis}</p></CardContent>
-          </Card>
-
-           <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><LineChart /> التوقع العلمي للحالة</CardTitle></CardHeader>
-            <CardContent><p>{rehabPlan.prognosis}</p></CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary"><FilePlus /> الخطة التأهيلية المقترحة</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {renderFormattedPlan(rehabPlan.rehabPlan)}
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                  <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={20}/> الاحتياطات</CardTitle></CardHeader>
-                  <CardContent><p>{rehabPlan.precautions}</p></CardContent>
-              </Card>
-              <Card>
-                  <CardHeader><CardTitle className="flex items-center gap-2"><CalendarClock size={20}/> مواعيد المراجعة</CardTitle></CardHeader>
-                  <CardContent><p>{rehabPlan.reviewAppointments}</p></CardContent>
-              </Card>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-1 space-y-8">
+            {patientData && (
+                <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><User />بيانات المريض</CardTitle></CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">الاسم:</span>
+                        <span>{patientData.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">العمر:</span>
+                        <span>{patientData.age}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-muted-foreground">الجنس:</span>
+                        <span>{patientData.gender === 'male' ? 'ذكر' : 'أنثى'}</span>
+                    </div>
+                     <div className="flex justify-between">
+                        <span className="text-muted-foreground">المهنة:</span>
+                        <span>{patientData.job}</span>
+                    </div>
+                    <Separator/>
+                    <div className="pt-2">
+                        <strong className="block text-muted-foreground mb-2">الأعراض الرئيسية:</strong>
+                        <p>{patientData.symptoms}</p>
+                    </div>
+                </CardContent>
+                </Card>
+            )}
+            {patientData && (
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><Activity />الحالة الوظيفية</CardTitle></CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">تحكم الرقبة:</span><span>{patientData.neck}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">تحكم الجذع:</span><span>{patientData.trunk}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">الوقوف:</span><span>{patientData.standing}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">المشي:</span><span>{patientData.walking}</span></div>
+                    </CardContent>
+                </Card>
+            )}
+            {patientData && (
+                 <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><HeartPulse />التاريخ الطبي</CardTitle></CardHeader>
+                    <CardContent className="space-y-4 text-sm">
+                         <div>
+                            <strong className="flex items-center gap-2 text-muted-foreground mb-2"><Shield size={16}/>الأدوية</strong>
+                            <p>{patientData.medications}</p>
+                         </div>
+                         <div>
+                            <strong className="flex items-center gap-2 text-muted-foreground mb-2"><Bone size={16}/>الكسور</strong>
+                            <p>{patientData.fractures}</p>
+                         </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
-      )}
+        
+        <div className="lg:col-span-2 space-y-8">
+            {rehabPlan && (
+                <>
+                 <Card className="bg-secondary/20">
+                    <CardHeader><CardTitle className="flex items-center gap-2"><Stethoscope /> التشخيص المبدئي</CardTitle></CardHeader>
+                    <CardContent><p className="text-muted-foreground">{rehabPlan.initialDiagnosis}</p></CardContent>
+                </Card>
+
+                <Card className="bg-secondary/20">
+                    <CardHeader><CardTitle className="flex items-center gap-2"><LineChart /> التوقع العلمي للحالة (Prognosis)</CardTitle></CardHeader>
+                    <CardContent><p className="text-muted-foreground">{rehabPlan.prognosis}</p></CardContent>
+                </Card>
+                </>
+            )}
+            
+            {consideration && (
+                <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-primary"><Lightbulb />تحليل الذكاء الاصطناعي</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                    <h4 className="font-semibold mb-2">تأثير الأدوية:</h4>
+                    <p className="text-muted-foreground">{consideration.medicationsInfluence}</p>
+                    </div>
+                    <Separator />
+                    <div>
+                    <h4 className="font-semibold mb-2">تأثير الكسور:</h4>
+                    <p className="text-muted-foreground">{consideration.fracturesInfluence}</p>
+                    </div>
+                </CardContent>
+                </Card>
+            )}
+
+            {rehabPlan && (
+                <>
+                <Card>
+                    <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-primary"><Target /> الخطة التأهيلية المقترحة</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {renderFormattedPlan(rehabPlan.rehabPlan)}
+                    </CardContent>
+                </Card>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={20}/> الاحتياطات</CardTitle></CardHeader>
+                        <CardContent><p className="text-muted-foreground">{rehabPlan.precautions}</p></CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle className="flex items-center gap-2"><CalendarClock size={20}/> مواعيد المراجعة</CardTitle></CardHeader>
+                        <CardContent><p className="text-muted-foreground">{rehabPlan.reviewAppointments}</p></CardContent>
+                    </Card>
+                </div>
+                </>
+            )}
+        </div>
+      </div>
     </div>
   );
 }
