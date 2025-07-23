@@ -21,15 +21,18 @@ export function Logo({
           <path
             d="M50 95C74.8528 95 95 74.8528 95 50C95 25.1472 74.8528 5 50 5C25.1472 5 5 25.1472 5 50C5 74.8528 25.1472 95 50 95Z"
             stroke="hsl(var(--primary))"
-            strokeWidth="10"
+            strokeWidth="8"
           />
           <path 
-            d="M30 35L40 65L50 45L60 65L70 35" 
+            d="M30 65L40 35L50 55L60 35L70 65" 
             stroke="hsl(var(--primary))" 
-            strokeWidth="10" 
+            strokeWidth="8" 
             strokeLinecap="round" 
             strokeLinejoin="round" 
           />
+           <path d="M68 56C71.3137 56 74 53.3137 74 50C74 46.6863 71.3137 44 68 44C64.6863 44 62 46.6863 62 50C62 53.3137 64.6863 56 68 56Z" fill="hsl(var(--primary))" />
+           <path d="M68 44V35C68 32.2386 65.7614 30 63 30H58"  stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round"/>
+
         </svg>
       </div>
       
