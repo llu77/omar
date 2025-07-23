@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
@@ -13,13 +12,31 @@ export function Logo({
   return (
     <div className="flex items-center gap-3">
       <div className={cn("relative w-24 h-24", className)}>
-        <Image
-          src="/logo.png"
-          alt="WASL AI - Medical artificial Intelligence"
-          fill
-          className="object-contain"
-          priority
-        />
+        <svg
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-full h-full object-contain"
+        >
+          <path
+            d="M50 95C74.8528 95 95 74.8528 95 50C95 25.1472 74.8528 5 50 5C25.1472 5 5 25.1472 5 50C5 74.8528 25.1472 95 50 95Z"
+            stroke="hsl(var(--primary))"
+            strokeWidth="10"
+          />
+          <path
+            d="M30 65L50 35L70 65"
+            stroke="hsl(var(--primary))"
+            strokeWidth="10"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M40 55L60 55"
+            stroke="hsl(var(--primary))"
+            strokeWidth="10"
+            strokeLinecap="round"
+          />
+        </svg>
       </div>
       
       {showText && (
