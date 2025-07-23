@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif;
+  font-family: 'Tajawal', sans-serif;
 }
 
 @layer base {
@@ -68,5 +68,6 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    @apply bg-gradient-to-br from-background to-secondary/20;
   }
 }

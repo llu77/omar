@@ -81,42 +81,16 @@ export default function ReportPage({
 
   const renderFormattedPlan = (text: string) => {
     const formattedText = text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/【(.*?)】/g, '<strong>$1</strong>')
+      .replace(/═══════════════════════════════════════/g, '<hr class="my-4 border-dashed border-border" />')
+      .replace(/✓/g, '<span class="text-green-400 ml-2">✓</span>')
+      .replace(/▸/g, '<span class="text-primary ml-2">▸</span>')
+      .replace(/⚠️/g, '<span class="text-yellow-400 ml-2">⚠️</span>')
+      .replace(/📅/g, '<span class="text-blue-400 ml-2">📅</span>')
+      .replace(/📋/g, '<span class="text-indigo-400 ml-2">📋</span>')
       .replace(/\n/g, '<br />');
-    
-    // Regex to split by "Week X" or similar headings, even with Arabic text.
-    // It looks for a bolded text that contains "Week" or "الأسبوع"
-    const sections = formattedText.split(/(<strong>(?:الأسبوع|Week)\s*\d+.*?<\/strong>)/).filter(Boolean);
-  
-    if (sections.length <= 1) {
-        return <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: formattedText }} />;
-    }
-  
-    return (
-        <Accordion type="single" collapsible className="w-full">
-            {Array.from({ length: Math.ceil(sections.length / 2) }).map((_, index) => {
-                const title = sections[index * 2];
-                const content = sections[index * 2 + 1];
-
-                if (!title || !content) return null;
-
-                return (
-                    <AccordionItem value={`item-${index}`} key={index}>
-                        <AccordionTrigger 
-                          className="text-lg font-semibold text-primary-foreground hover:no-underline"
-                          dangerouslySetInnerHTML={{ __html: title }} 
-                        />
-                        <AccordionContent>
-                           <div 
-                             className="prose prose-sm max-w-none text-muted-foreground rtl:prose-rtl" 
-                             dangerouslySetInnerHTML={{ __html: content }} 
-                           />
-                        </AccordionContent>
-                    </AccordionItem>
-                );
-            })}
-        </Accordion>
-    );
+      
+    return <div className="prose prose-sm max-w-none text-muted-foreground rtl:prose-rtl" dangerouslySetInnerHTML={{ __html: formattedText }} />;
 };
   
   if (loading) {
