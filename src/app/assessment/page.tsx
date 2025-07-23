@@ -34,7 +34,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, Shield, User, FileText, Bot } from "lucide-react";
+import { Activity, Shield, User, FileText, Bot, Briefcase, Stethoscope } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب"),
@@ -44,6 +44,8 @@ const formSchema = z.object({
   gender: z.enum(["male", "female"], {
     required_error: "الجنس مطلوب",
   }),
+  job: z.string().min(2, "المهنة مطلوبة"),
+  symptoms: z.string().min(10, "يجب وصف الأعراض بشكل كافٍ"),
   neck: z.enum(["yes", "partially", "no"], { required_error: "الحقل مطلوب" }),
   trunk: z.enum(["yes", "partially", "no"], { required_error: "الحقل مطلوب" }),
   standing: z.enum(["yes", "with assistance", "no"], {
@@ -84,6 +86,8 @@ export default function AssessmentPage() {
       name: "",
       age: "",
       gender: undefined,
+      job: "",
+      symptoms: "",
       medications_details: "",
       fractures_details: "",
     },
@@ -98,6 +102,8 @@ export default function AssessmentPage() {
       name: values.name,
       age: parseInt(values.age, 10),
       gender: values.gender,
+      job: values.job,
+      symptoms: values.symptoms,
       neck: values.neck,
       trunk: values.trunk,
       standing: values.standing,
@@ -231,6 +237,35 @@ export default function AssessmentPage() {
                     <Input disabled value={fileNumber} className="mt-2 bg-muted/50" />
                 </div>
             </div>
+
+            <div className="p-6 border rounded-lg bg-primary/5">
+                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><Briefcase /> المهنة والأعراض</h3>
+                <div className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="job"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>مهنة المريض</FormLabel>
+                          <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="symptoms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>وصف الأعراض</FormLabel>
+                          <FormControl><Textarea placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                </div>
+            </div>
+
 
             <div className="p-6 border rounded-lg bg-primary/5">
                 <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-primary"><Activity /> الحالة الوظيفية</h3>

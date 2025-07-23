@@ -21,7 +21,7 @@ import { considerPatientInfo } from "@/ai/flows/consider-patient-info";
 import type { ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
 import { generateRehabPlan } from "@/ai/flows/generate-rehab-plan";
 import type { GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
-import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart } from "lucide-react";
+import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart, Briefcase, Stethoscope, Activity, FilePlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -80,21 +80,25 @@ export default function ReportPage({
   }, [params.fileNumber]);
 
   const renderFormattedPlan = (text: string) => {
-    const sections = text.split(/\n(?=\d+\.\s+Week \d+)/);
+    // Replace markdown-like bolding with strong tags
+    const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    const sections = formattedText.split(/(\d+\.\s+**Week \d+.*)/).filter(Boolean);
+
+    if (sections.length <= 1) {
+        return <div dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
+    }
+
     return (
         <Accordion type="single" collapsible className="w-full">
-            {sections.map((section, index) => {
-                const match = section.match(/(\d+\.\s+Week \d+.*)/);
-                const title = match ? match[0] : `الأسبوع ${index + 1}`;
-                const content = section.replace(title, '').trim();
+            {Array.from({ length: Math.ceil(sections.length / 2) }).map((_, index) => {
+                const title = sections[index * 2];
+                const content = sections[index * 2 + 1];
 
                 return (
                     <AccordionItem value={`item-${index}`} key={index}>
-                        <AccordionTrigger className="text-lg font-semibold">{title}</AccordionTrigger>
+                        <AccordionTrigger className="text-lg font-semibold" dangerouslySetInnerHTML={{ __html: title }} />
                         <AccordionContent>
-                            {content.split('\n').map((paragraph, pIndex) => (
-                                <p key={pIndex} className="mb-2 text-muted-foreground">{paragraph}</p>
-                            ))}
+                           <div className="prose prose-sm max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }} />
                         </AccordionContent>
                     </AccordionItem>
                 );
@@ -170,12 +174,16 @@ export default function ReportPage({
               <div><strong className="block text-muted-foreground">الاسم</strong> {patientData.name}</div>
               <div><strong className="block text-muted-foreground">العمر</strong> {patientData.age}</div>
               <div><strong className="block text-muted-foreground">الجنس</strong> {patientData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
+              <div><strong className="block text-muted-foreground">المهنة</strong> {patientData.job}</div>
+              <div className="col-span-full"><strong className="block text-muted-foreground">الأعراض</strong> {patientData.symptoms}</div>
+              <Separator className="col-span-full my-2"/>
               <div><strong className="block text-muted-foreground">تحكم الرقبة</strong> {patientData.neck}</div>
               <div><strong className="block text-muted-foreground">تحكم الجذع</strong> {patientData.trunk}</div>
               <div><strong className="block text-muted-foreground">الوقوف</strong> {patientData.standing}</div>
               <div><strong className="block text-muted-foreground">المشي</strong> {patientData.walking}</div>
-              <div className="col-span-2 md:col-span-3 lg:col-span-4"><strong className="block text-muted-foreground">الأدوية</strong> {patientData.medications}</div>
-              <div className="col-span-2 md:col-span-3 lg:col-span-4"><strong className="block text-muted-foreground">الكسور</strong> {patientData.fractures}</div>
+              <Separator className="col-span-full my-2"/>
+              <div className="col-span-full"><strong className="block text-muted-foreground">الأدوية</strong> {patientData.medications}</div>
+              <div className="col-span-full"><strong className="block text-muted-foreground">الكسور</strong> {patientData.fractures}</div>
           </CardContent>
         </Card>
       )}
@@ -202,21 +210,25 @@ export default function ReportPage({
       {rehabPlan && (
         <div className="space-y-6">
           <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><Stethoscope /> التشخيص المبدئي</CardTitle></CardHeader>
+            <CardContent><p>{rehabPlan.initialDiagnosis}</p></CardContent>
+          </Card>
+
+           <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2 text-primary"><LineChart /> التوقع العلمي للحالة</CardTitle></CardHeader>
+            <CardContent><p>{rehabPlan.prognosis}</p></CardContent>
+          </Card>
+          
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-primary"><Bot />الخطة التأهيلية المقترحة</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-primary"><FilePlus /> الخطة التأهيلية المقترحة</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="prose prose-sm max-w-none text-foreground">
-                    {renderFormattedPlan(rehabPlan.rehabPlan)}
-                </div>
+                {renderFormattedPlan(rehabPlan.rehabPlan)}
             </CardContent>
           </Card>
 
-          <div className="grid md:grid-cols-3 gap-6">
-              <Card>
-                  <CardHeader><CardTitle className="flex items-center gap-2"><LineChart size={20}/> نسبة التحسن المتوقعة</CardTitle></CardHeader>
-                  <CardContent><p>{rehabPlan.expectedRecoveryRate}</p></CardContent>
-              </Card>
+          <div className="grid md:grid-cols-2 gap-6">
               <Card>
                   <CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck size={20}/> الاحتياطات</CardTitle></CardHeader>
                   <CardContent><p>{rehabPlan.precautions}</p></CardContent>

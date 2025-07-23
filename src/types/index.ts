@@ -2,6 +2,8 @@ export interface PatientFormValues {
   name: string;
   age: string;
   gender: "male" | "female";
+  job: string;
+  symptoms: string;
   neck: "yes" | "partially" | "no";
   trunk: "yes" | "partially" | "no";
   standing: "yes" | "with assistance" | "no";
@@ -17,6 +19,8 @@ export interface PatientDataForAI {
   name: string;
   age: number;
   gender: "male" | "female";
+  job: string;
+  symptoms: string;
   neck: "yes" | "partially" | "no";
   trunk: "yes" | "partially" | "no";
   standing: "yes" | "with assistance" | "no";

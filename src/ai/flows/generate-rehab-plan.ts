@@ -11,6 +11,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateRehabPlanInputSchema = z.object({
+  job: z.string().describe("The patient's job."),
+  symptoms: z.string().describe("The patient's symptoms."),
   age: z.number().describe('The age of the patient.'),
   gender: z.string().describe('The gender of the patient.'),
   neck: z.string().describe('Neck control (yes/partially/no).'),
@@ -24,7 +26,8 @@ export type GenerateRehabPlanInput = z.infer<typeof GenerateRehabPlanInputSchema
 
 const GenerateRehabPlanOutputSchema = z.object({
   rehabPlan: z.string().describe('A detailed 12-week rehabilitation plan.'),
-  expectedRecoveryRate: z.string().describe('The expected recovery rate.'),
+  initialDiagnosis: z.string().describe('The initial diagnosis.'),
+  prognosis: z.string().describe('The scientific prognosis for the case.'),
   precautions: z.string().describe('Any precautions to take.'),
   reviewAppointments: z.string().describe('Recommended review appointments.'),
 });
@@ -39,22 +42,28 @@ const prompt = ai.definePrompt({
   input: {schema: GenerateRehabPlanInputSchema},
   output: {schema: GenerateRehabPlanOutputSchema},
   model: 'openai/gpt-4o-mini',
-  prompt: `You are a physical therapist. Create a detailed rehabilitation plan for a patient based on the following information:
+  prompt: `You are a medical rehabilitation consultant. A patient requires a detailed rehabilitation plan.
 
-Age: {{{age}}}
-Gender: {{{gender}}}
-Neck control: {{{neck}}}
-Trunk control: {{{trunk}}}
-Standing: {{{standing}}}
-Walking: {{{walking}}}
-Medications: {{{medications}}}
-Fractures: {{{fractures}}}
+Analyze the patient's data, focusing on their job and symptoms to provide a comprehensive plan.
 
-Write:
-1. A detailed 12-week plan with exercises and repetitions.
-2. Expected recovery rate.
-3. Precautions.
-4. Review appointments.`,
+Patient Data:
+- Job: {{{job}}}
+- Symptoms: {{{symptoms}}}
+- Age: {{{age}}}
+- Gender: {{{gender}}}
+- Neck control: {{{neck}}}
+- Trunk control: {{{trunk}}}
+- Standing: {{{standing}}}
+- Walking: {{{walking}}}
+- Medications: {{{medications}}}
+- Fractures: {{{fractures}}}
+
+Based on the data, provide the following in a scientific and structured manner:
+1.  **Initial Diagnosis:** A preliminary diagnosis based on the provided symptoms and functional status.
+2.  **Prognosis:** A scientific forecast of the patient's recovery potential and timeline.
+3.  **Detailed 12-Week Rehabilitation Plan:** A comprehensive week-by-week plan including specific exercises, sets, repetitions, and rest periods. The plan should be tailored to the patient's job requirements and functional goals.
+4.  **Precautions:** Key precautions and contraindications to ensure patient safety.
+5.  **Review Appointments:** A schedule for recommended follow-up appointments.`,
 });
 
 const generateRehabPlanFlow = ai.defineFlow(
