@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSearch, FilePlus2, Bot } from "lucide-react";
+import { Logo } from "@/components/logo";
+import { FileSearch, FilePlus2 } from "lucide-react";
 import Link from "next/link";
 
 export default function Home() {
@@ -8,8 +9,8 @@ export default function Home() {
     <div className="flex items-center justify-center min-h-full">
       <Card className="w-full max-w-2xl text-center shadow-2xl">
         <CardHeader className="items-center">
-          <div className="p-2 bg-primary/10 rounded-full flex items-center justify-center w-24 h-24 mb-4">
-            <Bot className="text-primary w-full h-full" />
+          <div className="p-4 bg-primary/10 rounded-full flex items-center justify-center w-24 h-24 mb-4">
+            <Logo className="text-primary w-full h-full" />
           </div>
           <CardTitle className="text-4xl font-headline">وصّل للتأهيل الطبي</CardTitle>
           <CardDescription className="text-lg">

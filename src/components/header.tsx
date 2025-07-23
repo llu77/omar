@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { FilePlus2, FileSearch, LogIn, Bot } from "lucide-react";
+import { FilePlus2, FileSearch, LogIn } from "lucide-react";
 import { Button } from "./ui/button";
+import { Logo } from "./logo";
 
 export default function Header() {
   return (
@@ -8,8 +9,8 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-full flex items-center justify-center w-10 h-10">
-                <Bot className="text-primary w-full h-full" />
+            <div className="p-2 bg-primary/10 rounded-full flex items-center justify-center w-12 h-12">
+                <Logo className="text-primary w-full h-full" />
             </div>
             <span className="text-2xl font-bold font-headline text-primary">
               وصّل للتأهيل الطبي
