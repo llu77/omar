@@ -23,18 +23,12 @@ export function Logo({
             stroke="hsl(var(--primary))"
             strokeWidth="10"
           />
-          <path
-            d="M30 65L50 35L70 65"
-            stroke="hsl(var(--primary))"
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M40 55L60 55"
-            stroke="hsl(var(--primary))"
-            strokeWidth="10"
-            strokeLinecap="round"
+          <path 
+            d="M25 65L40 35L50 55L60 35L75 65" 
+            stroke="hsl(var(--primary))" 
+            strokeWidth="10" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
           />
         </svg>
       </div>
