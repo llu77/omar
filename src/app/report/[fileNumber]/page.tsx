@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { PatientDataForAI } from "@/types";
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { considerPatientInfo, ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
-import { generateRehabPlan, GenerateRehabPlanOutput, formatRehabPlan } from "@/ai/flows/generate-rehab-plan";
+import { generateRehabPlan, GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
 import { useToast } from "@/hooks/use-toast";
 import {
   Accordion,
@@ -19,16 +19,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert"
-
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FileText, User, Calendar, Briefcase, Stethoscope, HeartPulse, Bone,
   Sparkles, CheckCircle, AlertTriangle, Info, Printer, Bot, ShieldCheck,
-  BrainCircuit, Activity, Clock
+  BrainCircuit, Activity, Clock, Loader2
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -51,20 +46,8 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
       router.push('/login');
     }
   }, [user, loading, router]);
-
-  useEffect(() => {
-    const data = localStorage.getItem(`report-${params.fileNumber}`);
-    if (data) {
-      const parsedData = JSON.parse(data);
-      setPatientData(parsedData);
-      runAIFlows(parsedData);
-    } else {
-      setGenerationState('error');
-      setError("لم يتم العثور على بيانات المريض. قد تكون انتهت صلاحية الجلسة.");
-    }
-  }, [params.fileNumber]);
-
-  const runAIFlows = async (data: PatientDataForAI) => {
+  
+  const runAIFlows = useCallback(async (data: PatientDataForAI) => {
     setGenerationState('considering');
     setError(null);
     try {
@@ -84,14 +67,33 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
     } catch (e: any) {
       console.error("AI flow error:", e);
       setGenerationState('error');
-      setError("حدث خطأ أثناء توليد الخطة بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى.");
+      setError("حدث خطأ أثناء توليد الخطة بالذكاء الاصطناعي. قد تكون هناك مشكلة في الاتصال بالخادم. يرجى المحاولة مرة أخرى.");
       toast({
         variant: "destructive",
         title: "خطأ في الذكاء الاصطناعي",
         description: e.message || "فشل الاتصال بنماذج الذكاء الاصطناعي.",
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    try {
+      const data = localStorage.getItem(`report-${params.fileNumber}`);
+      if (data) {
+        const parsedData = JSON.parse(data);
+        setPatientData(parsedData);
+        if (generationState === 'idle') {
+          runAIFlows(parsedData);
+        }
+      } else if (generationState !== 'done') {
+        setGenerationState('error');
+        setError("لم يتم العثور على بيانات المريض. قد تكون انتهت صلاحية الجلسة.");
+      }
+    } catch (e) {
+      setGenerationState('error');
+      setError("فشل في قراءة بيانات المريض من التخزين المحلي.");
+    }
+  }, [params.fileNumber, runAIFlows, generationState]);
 
   const handleSaveReport = () => {
     if (!rehabPlan || !patientData || !user) return;
@@ -220,12 +222,12 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold text-lg mb-2">التشخيص الأولي</h3>
-                <p className="prose dark:prose-invert max-w-none text-muted-foreground">{rehabPlan.initialDiagnosis}</p>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{rehabPlan.initialDiagnosis}</p>
               </div>
               <Separator />
               <div>
                 <h3 className="font-semibold text-lg mb-2">التوقعات العلمية للحالة (Prognosis)</h3>
-                <p className="prose dark:prose-invert max-w-none text-muted-foreground">{rehabPlan.prognosis}</p>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">{rehabPlan.prognosis}</p>
               </div>
             </CardContent>
           </Card>
@@ -239,7 +241,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
             </CardHeader>
             <CardContent>
               <div className="prose dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap font-body text-sm bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</pre>
+                <div className="whitespace-pre-wrap font-body text-sm bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</div>
               </div>
             </CardContent>
           </Card>
@@ -254,25 +256,25 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
               <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
                 <AccordionItem value="item-1">
                   <AccordionTrigger className="text-lg font-semibold">الاحتياطات العامة</AccordionTrigger>
-                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
                     {rehabPlan.precautions}
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-2">
                   <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><HeartPulse/>تأثير الأدوية</AccordionTrigger>
-                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
                     {considerations.medicationsInfluence}
                   </AccordionContent>
                 </AccordionItem>
                  <AccordionItem value="item-3">
                   <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><Bone/>تأثير الكسور</AccordionTrigger>
-                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
                     {considerations.fracturesInfluence}
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="item-4">
                   <AccordionTrigger className="text-lg font-semibold">جدول المتابعة والمراجعات</AccordionTrigger>
-                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground whitespace-pre-wrap">
                     {rehabPlan.reviewAppointments}
                   </AccordionContent>
                 </AccordionItem>

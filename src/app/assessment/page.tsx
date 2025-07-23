@@ -148,34 +148,34 @@ export default function AssessmentPage() {
   };
 
   function onSubmit(values: FormValues) {
-    const patientData: PatientDataForAI = {
-      fileNumber,
-      name: values.name,
-      age: parseInt(values.age, 10),
-      gender: values.gender,
-      job: values.job,
-      symptoms: values.symptoms,
-      neck: values.neck,
-      trunk: values.trunk,
-      standing: values.standing,
-      walking: values.walking,
-      medications: values.medications === "yes" ? `نعم - ${values.medications_details}` : "لا",
-      fractures: values.fractures === "yes" ? `نعم - ${values.fractures_details}` : "لا",
-    };
-    
     startTransition(() => {
       try {
+        const patientData: PatientDataForAI = {
+          fileNumber,
+          name: values.name,
+          age: parseInt(values.age, 10),
+          gender: values.gender,
+          job: values.job,
+          symptoms: values.symptoms,
+          neck: values.neck,
+          trunk: values.trunk,
+          standing: values.standing,
+          walking: values.walking,
+          medications: values.medications === "yes" ? `نعم - ${values.medications_details}` : "لا",
+          fractures: values.fractures === "yes" ? `نعم - ${values.fractures_details}` : "لا",
+        };
+
         localStorage.setItem(`report-${fileNumber}`, JSON.stringify(patientData));
         toast({
           title: "تم حفظ البيانات بنجاح ✓",
-          description: `جاري توليد التقرير بالذكاء الاصطناعي للملف رقم: ${fileNumber}`,
+          description: `جاري توجيهك لصفحة التقرير للملف رقم: ${fileNumber}`,
         });
         router.push(`/report/${fileNumber}`);
       } catch (error) {
         toast({
           variant: "destructive",
-          title: "خطأ في الحفظ",
-          description: "لم نتمكن من حفظ البيانات. يرجى المحاولة مرة أخرى.",
+          title: "خطأ في الحفظ المحلي",
+          description: "لم نتمكن من حفظ بيانات النموذج. يرجى المحاولة مرة أخرى.",
         });
       }
     });
