@@ -1,9 +1,34 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
-import { FileSearch, FilePlus2, ArrowLeft } from "lucide-react";
+import { FileSearch, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Home() {
+  const [user, loading] = useAuthState(auth);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full text-center p-4">
+        <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">جاري التحقق من جلسة المستخدم...</p>
+      </div>
+    )
+  }
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-full text-center p-4">
       <div className="relative w-48 h-48 mb-8">

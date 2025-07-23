@@ -1,18 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { FilePlus2, FileSearch, LogIn, LogOut } from "lucide-react";
+import { FilePlus2, FileSearch, LogIn, LogOut, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Logo } from "./logo";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import { signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 export default function Header() {
   const [user, loading] = useAuthState(auth);
+  const { toast } = useToast();
+  const router = useRouter();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+      toast({
+        title: "تم تسجيل الخروج بنجاح",
+      });
+      router.push('/login');
+    } catch (error) {
+       toast({
+        variant: "destructive",
+        title: "حدث خطأ أثناء تسجيل الخروج",
+      });
+    }
   }
 
   return (
@@ -28,7 +43,9 @@ export default function Header() {
             </span>
           </Link>
           <nav className="hidden md:flex items-center gap-2">
-            {user && (
+            {loading ? (
+                <Loader2 className="animate-spin" />
+            ) : user ? (
               <>
                 <Button asChild variant="ghost">
                   <Link href="/assessment">
@@ -42,22 +59,18 @@ export default function Header() {
                     استعادة تقرير
                   </Link>
                 </Button>
-              </>
-            )}
-            {!loading && (
-              user ? (
-                <Button onClick={handleLogout}>
+                <Button onClick={handleLogout} variant="outline">
                     <LogOut className="ml-2"/>
                     تسجيل الخروج
                 </Button>
-              ) : (
+              </>
+            ) : (
                 <Button asChild>
                     <Link href="/login">
                         <LogIn className="ml-2"/>
                         تسجيل الدخول
                     </Link>
                 </Button>
-              )
             )}
           </nav>
         </div>
