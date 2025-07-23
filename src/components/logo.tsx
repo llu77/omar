@@ -30,8 +30,8 @@ export function Logo({
             strokeLinecap="round" 
             strokeLinejoin="round" 
           />
-           <path d="M68 56C71.3137 56 74 53.3137 74 50C74 46.6863 71.3137 44 68 44C64.6863 44 62 46.6863 62 50C62 53.3137 64.6863 56 68 56Z" fill="hsl(var(--primary))" />
-           <path d="M68 44V35C68 32.2386 65.7614 30 63 30H58"  stroke="hsl(var(--primary))" strokeWidth="5" strokeLinecap="round"/>
+           <path d="M68 44C71.3137 44 74 46.6863 74 50C74 53.3137 71.3137 56 68 56C64.6863 56 62 53.3137 62 50C62 46.6863 64.6863 44 68 44Z" fill="hsl(var(--primary-foreground))" />
+           <path d="M68 56V65C68 67.7614 65.7614 70 63 70H58"  stroke="hsl(var(--primary-foreground))" strokeWidth="5" strokeLinecap="round"/>
 
         </svg>
       </div>
