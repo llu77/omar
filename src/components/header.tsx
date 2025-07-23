@@ -8,9 +8,9 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3">
-            <Stethoscope className="w-8 h-8 text-primary" />
+            <Stethoscope className="w-10 h-10 text-primary" />
             <span className="text-2xl font-bold font-headline text-primary">
-              وصّل
+              وصّل للتأهيل الطبي
             </span>
           </Link>
           <nav className="flex items-center gap-2">
