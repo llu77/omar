@@ -1,12 +1,15 @@
 import { genkit } from 'genkit';
 import { openAI } from 'genkitx-openai';
+import { defineDotprompt } from 'genkit';
 
 // التحقق من مفتاح API
 const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
-  throw new Error('OPENAI_API_KEY is required in .env.local');
+  throw new Error("The OPENAI_API_KEY environment variable is required. Please add it to your .env file.");
 }
+
+console.log('🚀 Genkit initializing with OpenAI...');
 
 // إعدادات محسنة للأداء
 export const ai = genkit({
@@ -18,34 +21,9 @@ export const ai = genkit({
       maxRetries: 2, // عدد أقل من المحاولات
     }),
   ],
-  logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
+  logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
   enableTracking: process.env.NODE_ENV !== 'production',
 });
 
-// دالة للتحقق السريع من الاتصال
-let connectionChecked = false;
-export async function ensureConnection(): Promise<boolean> {
-  if (connectionChecked) return true;
-  
-  try {
-    const response = await fetch('https://api.openai.com/v1/models', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      signal: AbortSignal.timeout(5000), // 5 ثواني timeout
-    });
-    
-    connectionChecked = response.ok;
-    if (connectionChecked) {
-      console.log('✅ OpenAI connection verified.');
-    }
-    return connectionChecked;
-  } catch (error) {
-    console.error('❌ Connection check failed:', error);
-    return false;
-  }
-}
 
-console.log('🚀 Genkit initialized and optimized.');
-ensureConnection();
+console.log('✅ Genkit initialized successfully.');
