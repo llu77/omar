@@ -74,4 +74,7 @@ const generateRehabPlanFlow = ai.defineFlow(
     outputSchema: GenerateRehabPlanOutputSchema,
   },
   async input => {
-    const {
+    const {output} = await prompt(input);
+    return output!;
+  }
+);
