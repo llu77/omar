@@ -24,7 +24,7 @@ export function Logo({
             strokeWidth="10"
           />
           <path 
-            d="M25 65L40 35L50 55L60 35L75 65" 
+            d="M30 35L40 65L50 45L60 65L70 35" 
             stroke="hsl(var(--primary))" 
             strokeWidth="10" 
             strokeLinecap="round" 
