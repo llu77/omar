@@ -5,15 +5,15 @@ import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
-  title: "وصّل للتأهيل الطبي",
-  description: "تطبيق ويب لتوليد خطط تأهيل طبية مخصصة باستخدام الذكاء الاصطناعي.",
-  keywords: "تأهيل طبي, علاج طبيعي, ذكاء اصطناعي, خطط علاجية",
+  title: "Wassel AI for Medical Rehab",
+  description: "Web application for generating personalized medical rehabilitation plans using AI.",
+  keywords: "medical rehabilitation, physical therapy, artificial intelligence, treatment plans",
   authors: [{ name: "Wassel Team" }],
   openGraph: {
-    title: "وصّل للتأهيل الطبي",
-    description: "نظام ذكي لإنشاء خطط تأهيل طبية مخصصة",
+    title: "Wassel AI for Medical Rehab",
+    description: "Intelligent system for creating customized medical rehabilitation plans",
     type: "website",
-    locale: "ar_SA",
+    locale: "en_US",
   },
 };
 

@@ -117,7 +117,7 @@ export default function RegisterPage() {
       
       toast({
         title: "تم إنشاء الحساب بنجاح ✓",
-        description: "مرحباً بك في برنامج وصّل للتأهيل الطبي",
+        description: "مرحباً بك في برنامج WASL AI للتأهيل الطبي",
       });
       
       router.push("/");
@@ -167,7 +167,7 @@ export default function RegisterPage() {
 
       toast({
         title: "تم تسجيل الدخول بنجاح ✓",
-        description: "أهلاً بك في برنامج وصّل!",
+        description: "أهلاً بك في برنامج WASL AI!",
       });
       router.push("/");
     } catch (error: any) {
@@ -197,7 +197,7 @@ export default function RegisterPage() {
               إنشاء حساب جديد
             </CardTitle>
             <CardDescription className="text-base">
-              انضم إلى نظام وصّل الذكي للتأهيل الطبي
+              انضم إلى نظام WASL AI الذكي للتأهيل الطبي
             </CardDescription>
           </div>
         </CardHeader>

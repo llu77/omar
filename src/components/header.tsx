@@ -75,7 +75,7 @@ export default function Header() {
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 group">
               <Logo className="h-8 w-8 text-primary" showText={false} />
-              <span className="font-headline text-xl font-bold hidden sm:inline">وصّل</span>
+              <span className="font-headline text-xl font-bold hidden sm:inline">WASL AI</span>
             </Link>
 
             {user && (

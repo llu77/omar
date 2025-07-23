@@ -15,7 +15,7 @@ export function Logo({
       <div className={cn("relative w-24 h-24", className)}>
         <Image
           src="/logo.png"
-          alt="وصّل - Medical AI Intelligence"
+          alt="WASL AI - Medical artificial Intelligence"
           fill
           className="object-contain"
           priority
@@ -24,8 +24,8 @@ export function Logo({
       
       {showText && (
         <div className="flex flex-col">
-          <span className="text-2xl font-bold text-primary">وصّل</span>
-          <span className="text-xs text-muted-foreground">Medical AI Intelligence</span>
+          <span className="text-2xl font-bold text-primary">WASL AI</span>
+          <span className="text-xs text-muted-foreground">Medical Artificial Intelligence</span>
         </div>
       )}
     </div>

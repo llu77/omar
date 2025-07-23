@@ -170,10 +170,10 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
               <FileText className="h-8 w-8 text-primary" />
-              تقرير وصّل 
+              WASL AI Report
             </h1>
             <p className="text-muted-foreground mt-2">
-              تقرير تم إنشاؤه بواسطة الذكاء الاصطناعي - وصّل
+              AI-Generated Report - WASL AI
             </p>
           </div>
           <div className="flex gap-2 no-print">

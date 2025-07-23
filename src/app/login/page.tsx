@@ -77,7 +77,7 @@ export default function LoginPage() {
       
       toast({
         title: "تم تسجيل الدخول بنجاح ✓",
-        description: "أهلاً بك مجدداً في وصّل!",
+        description: "أهلاً بك مجدداً في WASL AI!",
       });
       
       router.push("/");
@@ -164,7 +164,7 @@ export default function LoginPage() {
       
       toast({
         title: "تم تسجيل الدخول بنجاح ✓",
-        description: "أهلاً بك في وصّل!",
+        description: "أهلاً بك في WASL AI!",
       });
       
       router.push("/");
@@ -195,7 +195,7 @@ export default function LoginPage() {
               مرحباً بك مجدداً
             </CardTitle>
             <CardDescription className="text-base">
-              سجل دخولك للوصول إلى نظام وصّل 
+              سجل دخولك للوصول إلى نظام WASL AI
             </CardDescription>
           </div>
         </CardHeader>

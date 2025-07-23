@@ -77,7 +77,7 @@ export default function Home() {
             
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 tracking-tight">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
-                وصّل
+                WASL AI
               </span>
               {" "}
               للتأهيل الطبي الذكي

@@ -255,7 +255,7 @@ export default function AssessmentPage() {
           نموذج تقييم المريض
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
-          نظام  وصّل لتوليد خطط تأهيلية مخصصة
+          نظام WASL AI لتوليد خطط تأهيلية مخصصة
         </p>
       </div>
 
