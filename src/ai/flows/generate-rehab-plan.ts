@@ -41,7 +41,7 @@ const prompt = ai.definePrompt({
   name: 'generateRehabPlanPrompt',
   input: {schema: GenerateRehabPlanInputSchema},
   output: {schema: GenerateRehabPlanOutputSchema},
-  model: 'gpt-4o',
+  model: 'gemini-1.5-flash-latest',
   prompt: `You are a highly experienced medical rehabilitation consultant. A patient requires a comprehensive and scientifically-grounded rehabilitation plan. **All output must be in Arabic.**
 
 Your task is to conduct a thorough analysis of the patient's data. Pay special attention to their **job requirements** and **presenting symptoms** to formulate a highly personalized and effective plan.
