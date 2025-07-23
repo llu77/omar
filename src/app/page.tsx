@@ -1,16 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Stethoscope, FileSearch, FilePlus2 } from "lucide-react";
+import { FileSearch, FilePlus2 } from "lucide-react";
 import Link from "next/link";
+import Logo from "@/components/logo";
 
 export default function Home() {
   return (
     <div className="flex items-center justify-center min-h-full">
       <Card className="w-full max-w-2xl text-center shadow-2xl">
         <CardHeader className="items-center">
-          <div className="p-4 bg-primary/10 rounded-full mb-4">
-            <Stethoscope className="w-16 h-16 text-primary" />
-          </div>
+          <Logo className="w-24 h-24 mb-4" />
           <CardTitle className="text-4xl font-headline">وصّل للتأهيل الطبي</CardTitle>
           <CardDescription className="text-lg">
             أداة الذكاء الاصطناعي المتقدمة لإنشاء خطط تأهيلية مخصصة وفعّالة.
