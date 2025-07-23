@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import type { PatientDataForAI } from "@/types";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +22,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   FileText, User, Calendar, Briefcase, Stethoscope, HeartPulse, Bone,
   Sparkles, CheckCircle, AlertTriangle, Info, Printer, Bot, ShieldCheck,
-  BrainCircuit, Activity, Clock, Loader2
+  BrainCircuit, Activity, Clock, Loader2, Database, Download
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
-type ReportGenerationState = 'idle' | 'generating' | 'done' | 'error';
+type ReportGenerationState = 'idle' | 'fetching_db' | 'generating_ai' | 'done' | 'error';
+type ReportSource = 'db' | 'new' | null;
 
 function ReportView() {
   const params = useParams();
@@ -39,6 +40,7 @@ function ReportView() {
   const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
   const [report, setReport] = useState<GenerateEnhancedRehabPlanOutput | null>(null);
   const [generationState, setGenerationState] = useState<ReportGenerationState>('idle');
+  const [reportSource, setReportSource] = useState<ReportSource>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -47,50 +49,88 @@ function ReportView() {
     }
   }, [user, loading, router]);
   
-  const runAIFlow = useCallback(async (data: PatientDataForAI) => {
-    setGenerationState('generating');
+  const fetchReportFromDb = useCallback(async (fileNum: string) => {
+    if (!user) return;
+    setGenerationState('fetching_db');
     setError(null);
     try {
-      const generatedReport = await generateEnhancedRehabPlan(data);
-      setReport(generatedReport);
-      
-      setGenerationState('done');
-      toast({
-        title: "اكتمل إنشاء التقرير بنجاح",
-        description: "تم تحليل بيانات المريض وتوليد خطة تأهيل مخصصة.",
-      });
+      const reportDocRef = doc(db, 'reports', fileNum);
+      const docSnap = await getDoc(reportDocRef);
 
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Ensure the report belongs to the current user for security
+        if (data.userId === user.uid) {
+          setPatientData(data.patientData);
+          setReport(data.report);
+          setReportSource('db');
+          setGenerationState('done');
+          toast({
+            title: "تم تحميل التقرير المحفوظ",
+            description: "يتم عرض التقرير من قاعدة البيانات السحابية.",
+          });
+          return true;
+        } else {
+          setError("ليس لديك صلاحية لعرض هذا التقرير.");
+          setGenerationState('error');
+          return false;
+        }
+      }
+      return false; // Document does not exist
+    } catch (e: any) {
+      console.error("Error fetching from DB:", e);
+      setError("حدث خطأ أثناء محاولة جلب التقرير من قاعدة البيانات.");
+      setGenerationState('error');
+      return false;
+    }
+  }, [user, toast]);
+
+  const generateNewReport = useCallback(async () => {
+    try {
+      const localData = localStorage.getItem(`report-${fileNumber}`);
+      if (localData) {
+        const parsedData: PatientDataForAI = JSON.parse(localData);
+        setPatientData(parsedData);
+        
+        setGenerationState('generating_ai');
+        setError(null);
+        setReportSource('new');
+        
+        const generatedReport = await generateEnhancedRehabPlan(parsedData);
+        setReport(generatedReport);
+        
+        setGenerationState('done');
+        toast({
+          title: "اكتمل إنشاء التقرير بنجاح",
+          description: "تم تحليل بيانات المريض وتوليد خطة تأهيل مخصصة.",
+        });
+      } else {
+        setError("لم يتم العثور على بيانات المريض للبدء. يرجى إنشاء تقييم جديد.");
+        setGenerationState('error');
+      }
     } catch (e: any) {
       console.error("AI flow error:", e);
       setGenerationState('error');
-      setError("حدث خطأ أثناء توليد الخطة بالذكاء الاصطناعي. قد تكون هناك مشكلة في الاتصال بالخادم. يرجى المحاولة مرة أخرى.");
+      setError("حدث خطأ أثناء توليد الخطة بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى.");
       toast({
         variant: "destructive",
         title: "خطأ في الذكاء الاصطناعي",
         description: e.message || "فشل الاتصال بنماذج الذكاء الاصطناعي.",
       });
     }
-  }, [toast]);
+  }, [fileNumber, toast]);
+
 
   useEffect(() => {
-    if (!fileNumber) return;
-    try {
-      const data = localStorage.getItem(`report-${fileNumber}`);
-      if (data) {
-        const parsedData = JSON.parse(data);
-        setPatientData(parsedData);
-        if (generationState === 'idle') {
-          runAIFlow(parsedData);
+    if (fileNumber && user) {
+      fetchReportFromDb(fileNumber).then(found => {
+        if (!found) {
+          generateNewReport();
         }
-      } else if (generationState !== 'done') {
-        setGenerationState('error');
-        setError("لم يتم العثور على بيانات المريض. قد تكون انتهت صلاحية الجلسة.");
-      }
-    } catch (e) {
-      setGenerationState('error');
-      setError("فشل في قراءة بيانات المريض من التخزين المحلي.");
+      });
     }
-  }, [fileNumber, runAIFlow, generationState]);
+  }, [fileNumber, user, fetchReportFromDb, generateNewReport]);
+
 
   const handleSaveReport = () => {
     if (!report || !patientData || !user) return;
@@ -111,6 +151,7 @@ function ReportView() {
           title: "تم حفظ التقرير بنجاح",
           description: "يمكنك الآن العثور على هذا التقرير في قسم 'تقاريري'.",
         });
+        setReportSource('db'); // After saving, it's now considered as from DB
       } catch (error) {
         console.error("Error saving report:", error);
         toast({
@@ -124,9 +165,10 @@ function ReportView() {
 
   const renderStatus = () => {
     const statusMap = {
-      idle: { icon: <Clock className="animate-spin" />, text: "في انتظار بيانات المريض...", bg: "bg-gray-100 dark:bg-gray-800" },
-      generating: { icon: <Sparkles className="animate-pulse" />, text: "جاري إنشاء التقرير الشامل...", bg: "bg-purple-100 dark:bg-purple-900/30" },
-      done: { icon: <CheckCircle className="text-green-500" />, text: "اكتمل التقرير بنجاح!", bg: "bg-green-100 dark:bg-green-900/30" },
+      idle: { icon: <Clock className="animate-spin" />, text: "في الانتظار...", bg: "bg-gray-100 dark:bg-gray-800" },
+      fetching_db: { icon: <Database className="animate-pulse" />, text: "جاري البحث في قاعدة البيانات...", bg: "bg-blue-100 dark:bg-blue-900/30" },
+      generating_ai: { icon: <Sparkles className="animate-pulse" />, text: "لم يتم العثور على تقرير محفوظ، جاري إنشاء تقرير جديد...", bg: "bg-purple-100 dark:bg-purple-900/30" },
+      done: { icon: <CheckCircle className="text-green-500" />, text: `اكتمل التحميل بنجاح! (${reportSource === 'db' ? 'من السحابة' : 'تقرير جديد'})`, bg: "bg-green-100 dark:bg-green-900/30" },
       error: { icon: <AlertTriangle className="text-red-500" />, text: "حدث خطأ", bg: "bg-red-100 dark:bg-red-900/30" },
     };
     const currentStatus = statusMap[generationState];
@@ -176,9 +218,9 @@ function ReportView() {
               <Printer className="ml-2 h-4 w-4" />
               طباعة
             </Button>
-            {generationState === 'done' && (
+            {generationState === 'done' && reportSource === 'new' && (
               <Button onClick={handleSaveReport} disabled={isSaving}>
-                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="ml-2 h-4 w-4" />}
+                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Download className="ml-2 h-4 w-4" />}
                 حفظ في السحابة
               </Button>
             )}
