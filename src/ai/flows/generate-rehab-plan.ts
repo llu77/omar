@@ -11,8 +11,6 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import {openAI} from 'genkitx-openai';
 
-const gpt4oMini = openAI('gpt-4o-mini');
-
 const GenerateRehabPlanInputSchema = z.object({
   age: z.number().describe('The age of the patient.'),
   gender: z.string().describe('The gender of the patient.'),
@@ -41,7 +39,7 @@ const prompt = ai.definePrompt({
   name: 'generateRehabPlanPrompt',
   input: {schema: GenerateRehabPlanInputSchema},
   output: {schema: GenerateRehabPlanOutputSchema},
-  model: gpt4oMini,
+  model: openAI('gpt-4o-mini'),
   prompt: `You are a physical therapist. Create a detailed rehabilitation plan for a patient based on the following information:
 
 Age: {{{age}}}
