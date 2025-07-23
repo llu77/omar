@@ -1,15 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSearch, FilePlus2 } from "lucide-react";
+import { FileSearch, FilePlus2, Bot } from "lucide-react";
 import Link from "next/link";
-import Logo from "@/components/logo";
 
 export default function Home() {
   return (
     <div className="flex items-center justify-center min-h-full">
       <Card className="w-full max-w-2xl text-center shadow-2xl">
         <CardHeader className="items-center">
-          <Logo className="w-24 h-24 mb-4" />
+          <div className="p-2 bg-primary/10 rounded-full flex items-center justify-center w-24 h-24 mb-4">
+            <Bot className="text-primary w-full h-full" />
+          </div>
           <CardTitle className="text-4xl font-headline">وصّل للتأهيل الطبي</CardTitle>
           <CardDescription className="text-lg">
             أداة الذكاء الاصطناعي المتقدمة لإنشاء خطط تأهيلية مخصصة وفعّالة.
