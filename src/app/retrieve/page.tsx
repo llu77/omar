@@ -6,12 +6,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileSearch, ArrowRight, Search, History, Database, Cloud, Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { FileSearch, Search, Loader2, Cloud, Database } from "lucide-react";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -50,11 +50,12 @@ export default function RetrievePage() {
       if (key?.startsWith('report-')) {
         try {
           const data = JSON.parse(localStorage.getItem(key) || '{}');
-          if (data.fileNumber) {
+          if (data.fileNumber && data.name) {
+             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date();
             reportsMap.set(data.fileNumber, {
               fileNumber: data.fileNumber,
               patientName: data.name,
-              createdAt: new Date(data.createdAt || Date.now()),
+              createdAt: createdAt,
               source: 'local',
             });
           }
@@ -68,10 +69,11 @@ export default function RetrievePage() {
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
         reportsMap.set(data.fileNumber, { // Overwrites local if exists, as cloud is more authoritative
           fileNumber: data.fileNumber,
           patientName: data.patientName,
-          createdAt: data.createdAt.toDate(),
+          createdAt: createdAt,
           source: 'cloud',
         });
       });
@@ -79,8 +81,8 @@ export default function RetrievePage() {
       console.error('Error loading cloud reports:', error);
       toast({
         variant: "destructive",
-        title: "خطأ",
-        description: "فشل تحميل التقارير من السحابة."
+        title: "خطأ في الاتصال",
+        description: "فشل تحميل التقارير المحفوظة في السحابة. قد تظهر التقارير المحلية فقط."
       })
     }
     
@@ -91,12 +93,14 @@ export default function RetrievePage() {
 
   const handleRetrieve = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fileNumber.trim()) {
-      toast({ variant: "destructive", title: "خطأ", description: "الرجاء إدخال رقم الملف." });
-      return;
-    }
-    const trimmedFileNumber = fileNumber.trim();
-    router.push(`/report/${trimmedFileNumber}`);
+    startSearchTransition(() => {
+      if (!fileNumber.trim()) {
+        toast({ variant: "destructive", title: "خطأ", description: "الرجاء إدخال رقم الملف." });
+        return;
+      }
+      const trimmedFileNumber = fileNumber.trim();
+      router.push(`/report/${trimmedFileNumber}`);
+    });
   };
 
   const handleQuickAccess = (reportFileNumber: string) => {
@@ -178,7 +182,9 @@ export default function RetrievePage() {
                   >
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
-                        {report.source === 'cloud' ? <Cloud className="h-5 w-5 text-blue-500" /> : <Database className="h-5 w-5 text-green-500" />}
+                        {report.source === 'cloud' 
+                          ? <Cloud className="h-5 w-5 text-blue-500" title="محفوظ في السحابة" /> 
+                          : <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً" />}
                         <div>
                           <p className="font-semibold">{report.patientName}</p>
                           <p className="text-sm text-muted-foreground">

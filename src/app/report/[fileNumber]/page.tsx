@@ -30,9 +30,9 @@ import { Separator } from "@/components/ui/separator";
 type ReportGenerationState = 'idle' | 'considering' | 'generating' | 'done' | 'error';
 
 function ReportView() {
-  const router = useRouter();
   const params = useParams();
   const fileNumber = params.fileNumber as string;
+  const router = useRouter();
   const { toast } = useToast();
   const [user, loading] = useAuthState(auth);
   const [isSaving, startSavingTransition] = useTransition();
@@ -244,7 +244,7 @@ function ReportView() {
             </CardHeader>
             <CardContent>
               <div className="prose dark:prose-invert max-w-none">
-                <div className="whitespace-pre-wrap font-body text-sm bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</div>
+                <div className="whitespace-pre-wrap font-body bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</div>
               </div>
             </CardContent>
           </Card>
