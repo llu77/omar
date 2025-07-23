@@ -35,6 +35,22 @@ export default function ReportPage({
     const fileNumber = params.fileNumber;
     if (!fileNumber) return;
 
+    const generateReports = async (data: PatientDataForAI) => {
+      try {
+        const [considerationResult, rehabPlanResult] = await Promise.all([
+          considerPatientInfo(data),
+          generateRehabPlan(data),
+        ]);
+        setConsideration(considerationResult);
+        setRehabPlan(rehabPlanResult);
+      } catch (aiError) {
+        console.error("AI Generation Error:", aiError);
+        setError("حدث خطأ أثناء توليد التقرير بواسطة الذكاء الاصطناعي.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
     try {
       const savedData = localStorage.getItem(`report-${fileNumber}`);
       if (!savedData) {
@@ -42,24 +58,7 @@ export default function ReportPage({
       }
       const parsedData: PatientDataForAI = JSON.parse(savedData);
       setPatientData(parsedData);
-
-      const generateReports = async () => {
-        try {
-          const [considerationResult, rehabPlanResult] = await Promise.all([
-            considerPatientInfo(parsedData),
-            generateRehabPlan(parsedData),
-          ]);
-          setConsideration(considerationResult);
-          setRehabPlan(rehabPlanResult);
-        } catch (aiError) {
-          console.error("AI Generation Error:", aiError);
-          throw new Error("حدث خطأ أثناء توليد التقرير بواسطة الذكاء الاصطناعي.");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      generateReports();
+      generateReports(parsedData);
     } catch (e: any) {
       setError(e.message);
       setLoading(false);
@@ -72,6 +71,33 @@ export default function ReportPage({
     ));
   };
   
+  if (loading) {
+     return (
+        <div className="space-y-6">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-3xl font-headline flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileText />
+                  تقرير التأهيل الطبي
+                </div>
+                <Skeleton className="h-8 w-40" />
+              </CardTitle>
+              <CardDescription>
+                هذا التقرير تم إنشاؤه بواسطة الذكاء الاصطناعي ويجب مراجعته من قبل أخصائي مؤهل.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <Skeleton className="h-40 w-full" />
+          <div className="space-y-4">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-48 w-full" />
+          </div>
+        </div>
+      )
+  }
+
   if (error) {
     return (
       <Alert variant="destructive" className="max-w-2xl mx-auto">
@@ -98,8 +124,6 @@ export default function ReportPage({
           </CardDescription>
         </CardHeader>
       </Card>
-
-      {loading && !patientData && <Skeleton className="h-40 w-full" />}
       
       {patientData && (
         <Card>
@@ -118,14 +142,6 @@ export default function ReportPage({
               <div className="col-span-2 md:col-span-3 lg:col-span-4"><strong className="block text-muted-foreground">الكسور</strong> {patientData.fractures}</div>
           </CardContent>
         </Card>
-      )}
-
-      {loading && (
-        <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-        </div>
       )}
 
       {consideration && (
