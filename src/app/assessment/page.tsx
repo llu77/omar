@@ -31,7 +31,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, Shield, User, FileText, Bot } from "lucide-react";
@@ -69,6 +69,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function AssessmentPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
   const [fileNumber, setFileNumber] = useState("");
 
   useEffect(() => {
@@ -111,7 +112,9 @@ export default function AssessmentPage() {
         title: "تم حفظ البيانات بنجاح",
         description: `جاري توليد التقرير للملف رقم: ${fileNumber}`,
       });
-      router.push(`/report/${fileNumber}`);
+      startTransition(() => {
+        router.push(`/report/${fileNumber}`);
+      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -283,9 +286,9 @@ export default function AssessmentPage() {
             </div>
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" size="lg" disabled={form.formState.isSubmitting}>
+              <Button type="submit" size="lg" disabled={form.formState.isSubmitting || isPending}>
                 <Bot className="ml-2" />
-                توليد خطة تأهيلية
+                {isPending ? "جاري التوليد..." : "توليد خطة تأهيلية"}
               </Button>
             </div>
           </form>
