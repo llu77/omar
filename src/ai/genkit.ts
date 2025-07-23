@@ -22,37 +22,6 @@ export const ai = genkit({
   enableTracking: process.env.NODE_ENV !== 'production',
 });
 
-// استخدام نماذج أسرع وأرخص
-export const AVAILABLE_MODELS = {
-  // نماذج سريعة للإنتاج
-  FAST: 'gpt-3.5-turbo', // الأسرع والأرخص
-  FAST_16K: 'gpt-3.5-turbo-16k', // للمحتوى الطويل
-  
-  // نماذج متقدمة (للحالات الخاصة فقط)
-  ADVANCED: 'gpt-4-turbo-preview',
-  ADVANCED_LEGACY: 'gpt-4',
-} as const;
-
-// استخدام النموذج السريع كافتراضي
-export const DEFAULT_MODEL = process.env.DEFAULT_MODEL || AVAILABLE_MODELS.FAST;
-
-console.log('🚀 Genkit optimized for performance');
-console.log('⚡ Using fast model:', DEFAULT_MODEL);
-
-// دالة مساعدة لاختيار النموذج حسب الحاجة
-export function selectModelForTask(taskComplexity: 'simple' | 'medium' | 'complex'): string {
-  switch (taskComplexity) {
-    case 'simple':
-      return AVAILABLE_MODELS.FAST;
-    case 'medium':
-      return AVAILABLE_MODELS.FAST_16K;
-    case 'complex':
-      return AVAILABLE_MODELS.ADVANCED;
-    default:
-      return DEFAULT_MODEL;
-  }
-}
-
 // دالة للتحقق السريع من الاتصال
 let connectionChecked = false;
 export async function ensureConnection(): Promise<boolean> {
@@ -68,9 +37,15 @@ export async function ensureConnection(): Promise<boolean> {
     });
     
     connectionChecked = response.ok;
+    if (connectionChecked) {
+      console.log('✅ OpenAI connection verified.');
+    }
     return connectionChecked;
   } catch (error) {
-    console.error('Connection check failed:', error);
+    console.error('❌ Connection check failed:', error);
     return false;
   }
 }
+
+console.log('🚀 Genkit initialized and optimized.');
+ensureConnection();
