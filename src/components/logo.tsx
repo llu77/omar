@@ -1,38 +1,23 @@
-// components/logo.tsx - نسخة محسنة
-"use client";
-
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
   showText?: boolean;
-  size?: number;
-  withBackground?: boolean;
-  animated?: boolean;
 }
 
 export function Logo({ 
   className = "", 
   showText = true, 
-  size = 100,
-  withBackground = false,
-  animated = false
 }: LogoProps) {
   return (
     <div className="flex items-center gap-3">
-      <div 
-        className={`relative ${className} ${animated ? 'animate-pulse' : ''}`} 
-        style={{ width: size, height: size }}
-      >
-        {withBackground && (
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 rounded-full opacity-20" />
-        )}
+      <div className={cn("relative w-24 h-24", className)}>
         <Image
           src="/logo.png"
           alt="وصّل - Medical AI Intelligence"
-          width={size}
-          height={size}
-          className="object-contain relative z-10"
+          fill
+          className="object-contain"
           priority
         />
       </div>

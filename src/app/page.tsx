@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const features = [
@@ -50,14 +50,16 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user) {
-      router.push('/assessment');
-    }
+    // This logic can be adjusted based on desired behavior for logged-in users.
+    // For now, we allow logged-in users to see the homepage.
+    // if (!loading && user) {
+    //   router.push('/assessment');
+    // }
   }, [user, loading, router]);
 
-  if (loading || user) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
         <p className="mt-4 text-muted-foreground">جاري التحميل...</p>
       </div>
@@ -67,8 +69,8 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 px-4">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
+      <section className="relative overflow-hidden py-20 sm:py-32 px-4">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 -z-10" />
         <div className="container mx-auto relative z-10">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -77,10 +79,10 @@ export default function Home() {
             className="text-center max-w-4xl mx-auto"
           >
             <div className="flex justify-center mb-8">
-              <Logo className="w-32 h-32" showText={false} />
+              <Logo className="w-24 h-24 sm:w-32 sm:h-32" showText={false} />
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 tracking-tight">
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary/70">
                 وصّل
               </span>
@@ -88,28 +90,30 @@ export default function Home() {
               للتأهيل الطبي الذكي
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 leading-relaxed max-w-3xl mx-auto">
               نظام متطور يستخدم الذكاء الاصطناعي لإنشاء خطط تأهيلية 
-              طبية مخصصة وعلمية في دقائق
+              طبية مخصصة وعلمية في دقائق، مما يوفر الوقت ويعزز دقة الرعاية.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button asChild size="lg" className="text-lg px-8">
-                <Link href="/register">
+              <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full font-semibold shadow-lg hover:shadow-primary/30 transition-shadow">
+                <Link href={user ? "/assessment" : "/register"}>
                   ابدأ الآن مجاناً
                   <ArrowRight className="mr-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="text-lg px-8">
-                <Link href="/login">
-                  تسجيل الدخول
-                </Link>
-              </Button>
+              {!user && (
+                <Button asChild size="lg" variant="outline" className="text-lg px-8 py-6 rounded-full font-semibold">
+                  <Link href="/login">
+                    تسجيل الدخول
+                  </Link>
+                </Button>
+              )}
             </div>
 
             <motion.div
               animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               className="flex justify-center"
             >
               <ChevronDown className="w-8 h-8 text-muted-foreground" />
@@ -119,34 +123,40 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 bg-secondary/30">
+      <section id="features" className="py-20 sm:py-32 px-4 bg-secondary/50">
         <div className="container mx-auto">
           <motion.div 
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.5 }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-12"
+            className="text-center mb-16"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               لماذا وصّل؟
             </h2>
-            <p className="text-lg text-muted-foreground">
-              مميزات تجعل من وصّل الخيار الأمثل للمختصين الصحيين
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              مميزات تجعل من وصّل الخيار الأمثل للمختصين الصحيين الذين يسعون للكفاءة والدقة.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.5 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6 text-center">
-                    <feature.icon className="w-12 h-12 text-primary mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <Card className="h-full hover:shadow-xl hover:-translate-y-2 transition-all duration-300 bg-card border-primary/10">
+                  <CardHeader>
+                    <div className="bg-primary/10 p-3 rounded-full w-fit mb-4">
+                      <feature.icon className="w-8 h-8 text-primary" />
+                    </div>
+                    <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <p className="text-muted-foreground">{feature.description}</p>
                   </CardContent>
                 </Card>
@@ -157,7 +167,7 @@ export default function Home() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 sm:py-32 px-4">
         <div className="container mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
@@ -165,13 +175,14 @@ export default function Home() {
                 key={index}
                 initial={{ opacity: 0, scale: 0.5 }}
                 whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true, amount: 0.5 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center"
+                className="text-center p-4 rounded-lg hover:bg-secondary/50 transition-colors"
               >
                 <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
                   {stat.value}
                 </div>
-                <div className="text-muted-foreground">{stat.label}</div>
+                <div className="text-muted-foreground font-medium">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -179,21 +190,22 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-primary/5">
+      <section className="py-20 sm:py-32 px-4 bg-primary/5">
         <div className="container mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              جاهز للبدء؟
+              جاهز لتعزيز ممارستك الطبية؟
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              انضم إلى مئات المختصين الذين يستخدمون وصّل يومياً
+            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
+              انضم إلى مئات المختصين الذين يستخدمون وصّل يومياً لتحسين نتائج مرضاهم وتوفير الوقت.
             </p>
-            <Button asChild size="lg" className="text-lg px-8">
-              <Link href="/register">
+            <Button asChild size="lg" className="text-lg px-8 py-6 rounded-full font-semibold shadow-lg hover:shadow-primary/30 transition-shadow">
+              <Link href={user ? "/assessment" : "/register"}>
                 إنشاء حساب مجاني
                 <ArrowRight className="mr-2 h-5 w-5" />
               </Link>

@@ -1,44 +1,50 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import type { PatientDataForAI } from "@/types";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { doc, setDoc } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { considerPatientInfo, ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
+import { generateRehabPlan, GenerateRehabPlanOutput, formatRehabPlan } from "@/ai/flows/generate-rehab-plan";
+import { useToast } from "@/hooks/use-toast";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { FileText, Search, Filter, Calendar, User, Download } from "lucide-react";
-import { formatDistanceToNow, format } from 'date-fns';
-import { arSA } from 'date-fns/locale';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 
-interface Report {
-  id: string;
-  fileNumber: string;
-  patientName: string;
-  createdAt: Date;
-  age: number;
-  gender: string;
-  diagnosis?: string;
-}
+import {
+  FileText, User, Calendar, Briefcase, Stethoscope, HeartPulse, Bone,
+  Sparkles, CheckCircle, AlertTriangle, Info, Printer, Bot, ShieldCheck,
+  BrainCircuit, Activity, Clock
+} from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
-export default function ReportsPage() {
-  const [user, loading] = useAuthState(auth);
+type ReportGenerationState = 'idle' | 'considering' | 'generating' | 'done' | 'error';
+
+export default function ReportPage({ params }: { params: { fileNumber: string } }) {
   const router = useRouter();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
-  const [loadingReports, setLoadingReports] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState("date-desc");
+  const { toast } = useToast();
+  const [user, loading] = useAuthState(auth);
+  const [isSaving, startSavingTransition] = useTransition();
+
+  const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
+  const [considerations, setConsiderations] = useState<ConsiderPatientInfoOutput | null>(null);
+  const [rehabPlan, setRehabPlan] = useState<GenerateRehabPlanOutput | null>(null);
+  const [generationState, setGenerationState] = useState<ReportGenerationState>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -47,245 +53,235 @@ export default function ReportsPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user) {
-      loadReports();
+    const data = localStorage.getItem(`report-${params.fileNumber}`);
+    if (data) {
+      const parsedData = JSON.parse(data);
+      setPatientData(parsedData);
+      runAIFlows(parsedData);
+    } else {
+      setGenerationState('error');
+      setError("لم يتم العثور على بيانات المريض. قد تكون انتهت صلاحية الجلسة.");
     }
-  }, [user]);
+  }, [params.fileNumber]);
 
-  useEffect(() => {
-    filterAndSortReports();
-  }, [reports, searchTerm, sortBy]);
-
-  const loadReports = async () => {
-    if (!user) return;
-    
-    setLoadingReports(true);
+  const runAIFlows = async (data: PatientDataForAI) => {
+    setGenerationState('considering');
+    setError(null);
     try {
-      const allReports: Report[] = [];
-
-      // من localStorage
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('report-')) {
-          try {
-            const data = JSON.parse(localStorage.getItem(key) || '{}');
-            allReports.push({
-              id: key,
-              fileNumber: data.fileNumber,
-              patientName: data.name,
-              createdAt: new Date(data.createdAt || Date.now()),
-              age: data.age,
-              gender: data.gender,
-            });
-          } catch (e) {
-            console.error('Error parsing report:', e);
-          }
-        }
-      }
-
-      // من Firebase
-      const q = query(
-        collection(db, 'reports'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
+      const infoConsiderations = await considerPatientInfo(data);
+      setConsiderations(infoConsiderations);
       
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        allReports.push({
-          id: doc.id,
-          fileNumber: data.fileNumber,
-          patientName: data.patientName,
-          createdAt: data.createdAt.toDate(),
-          age: data.patientData?.age || 0,
-          gender: data.patientData?.gender || '',
-          diagnosis: data.rehabPlan?.initialDiagnosis,
-        });
+      setGenerationState('generating');
+      const plan = await generateRehabPlan(data);
+      setRehabPlan(plan);
+      
+      setGenerationState('done');
+      toast({
+        title: "اكتمل إنشاء التقرير بنجاح",
+        description: "تم تحليل بيانات المريض وتوليد خطة تأهيل مخصصة.",
       });
 
-      // إزالة التكرارات
-      const uniqueReports = allReports.filter((report, index, self) =>
-        index === self.findIndex((r) => r.fileNumber === report.fileNumber)
-      );
-
-      setReports(uniqueReports);
-    } catch (error) {
-      console.error('Error loading reports:', error);
-    } finally {
-      setLoadingReports(false);
+    } catch (e: any) {
+      console.error("AI flow error:", e);
+      setGenerationState('error');
+      setError("حدث خطأ أثناء توليد الخطة بالذكاء الاصطناعي. يرجى المحاولة مرة أخرى.");
+      toast({
+        variant: "destructive",
+        title: "خطأ في الذكاء الاصطناعي",
+        description: e.message || "فشل الاتصال بنماذج الذكاء الاصطناعي.",
+      });
     }
   };
 
-  const filterAndSortReports = () => {
-    let filtered = [...reports];
+  const handleSaveReport = () => {
+    if (!rehabPlan || !patientData || !user) return;
 
-    // البحث
-    if (searchTerm) {
-      filtered = filtered.filter(report =>
-        report.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.fileNumber.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    startSavingTransition(async () => {
+      try {
+        const reportDocRef = doc(db, 'reports', patientData.fileNumber);
+        await setDoc(reportDocRef, {
+          userId: user.uid,
+          fileNumber: patientData.fileNumber,
+          patientName: patientData.name,
+          createdAt: new Date(),
+          patientData: patientData,
+          rehabPlan: rehabPlan,
+          considerations: considerations,
+        });
 
-    // الترتيب
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "date-desc":
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        case "date-asc":
-          return a.createdAt.getTime() - b.createdAt.getTime();
-        case "name":
-          return a.patientName.localeCompare(b.patientName, 'ar');
-        case "age":
-          return a.age - b.age;
-        default:
-          return 0;
+        toast({
+          title: "تم حفظ التقرير بنجاح",
+          description: "يمكنك الآن العثور على هذا التقرير في قسم 'تقاريري'.",
+        });
+      } catch (error) {
+        console.error("Error saving report:", error);
+        toast({
+          variant: "destructive",
+          title: "خطأ في الحفظ",
+          description: "لم نتمكن من حفظ التقرير في السحابة. سيبقى التقرير متاحاً محلياً.",
+        });
       }
     });
-
-    setFilteredReports(filtered);
   };
 
-  const exportReports = () => {
-    const csvContent = [
-      ['رقم الملف', 'اسم المريض', 'العمر', 'الجنس', 'تاريخ الإنشاء'],
-      ...filteredReports.map(report => [
-        report.fileNumber,
-        report.patientName,
-        report.age,
-        report.gender === 'male' ? 'ذكر' : 'أنثى',
-        format(report.createdAt, 'yyyy-MM-dd', { locale: arSA })
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `تقارير_وصل_${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+  const renderStatus = () => {
+    const statusMap = {
+      idle: { icon: <Clock className="animate-spin" />, text: "في انتظار بيانات المريض...", bg: "bg-gray-100 dark:bg-gray-800" },
+      considering: { icon: <BrainCircuit className="animate-pulse" />, text: "تحليل الاعتبارات الطبية (الأدوية والكسور)...", bg: "bg-blue-100 dark:bg-blue-900/30" },
+      generating: { icon: <Sparkles className="animate-pulse" />, text: "توليد خطة التأهيل المخصصة...", bg: "bg-purple-100 dark:bg-purple-900/30" },
+      done: { icon: <CheckCircle className="text-green-500" />, text: "اكتمل التقرير بنجاح!", bg: "bg-green-100 dark:bg-green-900/30" },
+      error: { icon: <AlertTriangle className="text-red-500" />, text: "حدث خطأ", bg: "bg-red-100 dark:bg-red-900/30" },
+    };
+    const currentStatus = statusMap[generationState];
+    return (
+      <Card className={`mb-8 ${currentStatus.bg}`}>
+        <CardContent className="p-4 flex items-center gap-4">
+          <div className="text-primary">{currentStatus.icon}</div>
+          <div>
+            <p className="font-semibold">{currentStatus.text}</p>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
-
-  if (loading || !user) {
+  
+  if (loading || (!patientData && generationState !== 'error')) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-12 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
+        <Skeleton className="h-12 w-1/2" />
+        <Skeleton className="h-8 w-1/3" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
         </div>
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <FileText className="h-8 w-8" />
-            تقاريري
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            إجمالي التقارير: {reports.length}
-          </p>
-        </div>
-        <Button onClick={exportReports} variant="outline">
-          <Download className="h-4 w-4 ml-2" />
-          تصدير CSV
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="بحث بالاسم أو رقم الملف..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pr-10"
-                />
-              </div>
-            </div>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="ترتيب حسب" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="date-desc">الأحدث أولاً</SelectItem>
-                <SelectItem value="date-asc">الأقدم أولاً</SelectItem>
-                <SelectItem value="name">الاسم</SelectItem>
-                <SelectItem value="age">العمر</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reports Grid */}
-      {loadingReports ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <Skeleton key={i} className="h-48" />
-          ))}
-        </div>
-      ) : filteredReports.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">
-              {searchTerm ? "لا توجد نتائج للبحث" : "لا توجد تقارير بعد"}
+    <div className="max-w-5xl mx-auto">
+      <header className="mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
+              <FileText className="h-8 w-8 text-primary" />
+              تقرير التأهيل الطبي
+            </h1>
+            <p className="text-muted-foreground mt-2">
+              تقرير تم إنشاؤه بواسطة الذكاء الاصطناعي - نظام وصّل
             </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredReports.map((report) => (
-            <Card
-              key={report.fileNumber}
-              className="hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => router.push(`/report/${report.fileNumber}`)}
-            >
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg">{report.patientName}</CardTitle>
-                  <Badge variant="outline" className="font-mono text-xs">
-                    {report.fileNumber}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User className="h-4 w-4" />
-                    <span>{report.age} سنة - {report.gender === 'male' ? 'ذكر' : 'أنثى'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {formatDistanceToNow(report.createdAt, { 
-                        addSuffix: true,
-                        locale: arSA 
-                      })}
-                    </span>
-                  </div>
-                  {report.diagnosis && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 mt-3">
-                      {report.diagnosis}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          </div>
+          <div className="flex gap-2 no-print">
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="ml-2 h-4 w-4" />
+              طباعة
+            </Button>
+            {generationState === 'done' && (
+              <Button onClick={handleSaveReport} disabled={isSaving}>
+                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="ml-2 h-4 w-4" />}
+                حفظ في السحابة
+              </Button>
+            )}
+          </div>
         </div>
-      )}
+        <Separator className="my-6" />
+      </header>
+
+      {renderStatus()}
+
+      <div className="space-y-8">
+        {patientData && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><User />معلومات المريض</CardTitle>
+              <CardDescription>رقم الملف: <Badge variant="secondary" className="font-mono">{patientData.fileNumber}</Badge></CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6 text-sm">
+              <div className="flex items-center gap-2"><User className="text-primary"/><strong>الاسم:</strong> {patientData.name}</div>
+              <div className="flex items-center gap-2"><Calendar className="text-primary"/><strong>العمر:</strong> {patientData.age} سنة</div>
+              <div className="flex items-center gap-2"><Stethoscope className="text-primary"/><strong>الجنس:</strong> {patientData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
+              <div className="flex items-center gap-2 col-span-2 md:col-span-3"><Briefcase className="text-primary"/><strong>المهنة:</strong> {patientData.job}</div>
+              <div className="col-span-2 md:col-span-3">
+                <p className="font-semibold mb-2 flex items-center gap-2"><Info className="text-primary"/>الأعراض الرئيسية:</p>
+                <p className="text-muted-foreground bg-secondary/50 p-3 rounded-md">{patientData.symptoms}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {rehabPlan && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Stethoscope />التشخيص والتوقعات</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-lg mb-2">التشخيص الأولي</h3>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground">{rehabPlan.initialDiagnosis}</p>
+              </div>
+              <Separator />
+              <div>
+                <h3 className="font-semibold text-lg mb-2">التوقعات العلمية للحالة (Prognosis)</h3>
+                <p className="prose dark:prose-invert max-w-none text-muted-foreground">{rehabPlan.prognosis}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {rehabPlan && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Activity />خطة التأهيل الشاملة</CardTitle>
+              <CardDescription>برنامج علاجي مفصل لمدة 12 أسبوع</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="prose dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap font-body text-sm bg-secondary/50 p-4 rounded-lg">{rehabPlan.rehabPlan}</pre>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        {considerations && rehabPlan && (
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><AlertTriangle />الاحتياطات والاعتبارات الطبية</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger className="text-lg font-semibold">الاحتياطات العامة</AccordionTrigger>
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                    {rehabPlan.precautions}
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                  <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><HeartPulse/>تأثير الأدوية</AccordionTrigger>
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                    {considerations.medicationsInfluence}
+                  </AccordionContent>
+                </AccordionItem>
+                 <AccordionItem value="item-3">
+                  <AccordionTrigger className="text-lg font-semibold flex items-center gap-2"><Bone/>تأثير الكسور</AccordionTrigger>
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                    {considerations.fracturesInfluence}
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                  <AccordionTrigger className="text-lg font-semibold">جدول المتابعة والمراجعات</AccordionTrigger>
+                  <AccordionContent className="prose dark:prose-invert max-w-none text-muted-foreground">
+                    {rehabPlan.reviewAppointments}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
+
+      </div>
     </div>
   );
 }

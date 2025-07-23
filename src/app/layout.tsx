@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 export const metadata: Metadata = {
   title: "وصّل للتأهيل الطبي",
   description: "تطبيق ويب لتوليد خطط تأهيل طبية مخصصة باستخدام الذكاء الاصطناعي.",
-  keywords: "تأهيل طبي، علاج طبيعي، ذكاء اصطناعي، خطط علاجية",
+  keywords: "تأهيل طبي, علاج طبيعي, ذكاء اصطناعي, خطط علاجية",
   authors: [{ name: "Wassel Team" }],
   openGraph: {
     title: "وصّل للتأهيل الطبي",
@@ -32,11 +32,11 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased bg-background">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

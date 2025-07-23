@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,12 +56,19 @@ export default function LoginPage() {
     },
   });
 
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem("rememberedEmail");
+    if (rememberedEmail) {
+      form.setValue("email", rememberedEmail);
+      form.setValue("rememberMe", true);
+    }
+  }, [form]);
+
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       
-      // حفظ البريد الإلكتروني إذا تم اختيار "تذكرني"
       if (values.rememberMe) {
         localStorage.setItem("rememberedEmail", values.email);
       } else {
@@ -73,7 +80,7 @@ export default function LoginPage() {
         description: "أهلاً بك مجدداً في برنامج وصّل!",
       });
       
-      router.push("/dashboard");
+      router.push("/");
     } catch (error: any) {
       console.error("Login error:", error);
       
@@ -81,10 +88,8 @@ export default function LoginPage() {
       
       switch (error.code) {
         case 'auth/user-not-found':
-          errorMessage = "لا يوجد حساب مرتبط بهذا البريد الإلكتروني.";
-          break;
-        case 'auth/wrong-password':
-          errorMessage = "كلمة المرور غير صحيحة.";
+        case 'auth/invalid-credential':
+          errorMessage = "البريد الإلكتروني أو كلمة المرور غير صحيحة.";
           break;
         case 'auth/invalid-email':
           errorMessage = "البريد الإلكتروني غير صالح.";
@@ -114,6 +119,7 @@ export default function LoginPage() {
     const email = form.getValues("email");
     
     if (!email) {
+      form.trigger("email");
       toast({
         variant: "destructive",
         title: "خطأ",
@@ -124,10 +130,7 @@ export default function LoginPage() {
 
     setResetLoading(true);
     try {
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: false,
-      });
+      await sendPasswordResetEmail(auth, email);
       toast({
         title: "تم إرسال رابط استعادة كلمة المرور ✓",
         description: "تحقق من بريدك الإلكتروني لإعادة تعيين كلمة المرور",
@@ -164,7 +167,7 @@ export default function LoginPage() {
         description: "أهلاً بك في برنامج وصّل!",
       });
       
-      router.push("/dashboard");
+      router.push("/");
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       
@@ -172,7 +175,7 @@ export default function LoginPage() {
         toast({
           variant: "destructive",
           title: "خطأ في تسجيل الدخول",
-          description: "فشل تسجيل الدخول باستخدام Google",
+          description: "فشل تسجيل الدخول باستخدام Google. قد يكون البريد الإلكتروني مرتبطًا بحساب آخر.",
         });
       }
     } finally {
@@ -182,7 +185,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-secondary/10 to-primary/5">
-      <Card className="w-full max-w-lg shadow-2xl bg-card/95 backdrop-blur border-primary/20">
+      <Card className="w-full max-w-md shadow-2xl bg-card/95 backdrop-blur border-primary/20 animate-in fade-in-50 zoom-in-95">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
             <Logo className="w-24 h-24" showText={false} />
@@ -213,10 +216,10 @@ export default function LoginPage() {
                           autoComplete="email"
                           disabled={loading}
                           dir="ltr"
-                          className="pr-10"
+                          className="pl-10"
                           {...field}
                         />
-                        <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -253,13 +256,15 @@ export default function LoginPage() {
                           placeholder="أدخل كلمة المرور"
                           autoComplete="current-password"
                           disabled={loading}
+                          dir="ltr"
+                          className="pl-10"
                           {...field}
                         />
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          className="absolute left-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          size="icon"
+                          className="absolute left-1 top-1/2 -translate-y-1/2 h-8 w-8 hover:bg-transparent"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? (
@@ -279,7 +284,7 @@ export default function LoginPage() {
                 control={form.control}
                 name="rememberMe"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-x-reverse space-y-0">
+                  <FormItem className="flex flex-row items-center space-x-3 space-x-reverse space-y-0">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -309,7 +314,7 @@ export default function LoginPage() {
                 ) : (
                   <>
                     تسجيل الدخول
-                    <ArrowRight className="mr-2 h-5 w-5" />
+                    <LogIn className="mr-2 h-5 w-5" />
                   </>
                 )}
               </Button>
@@ -373,6 +378,3 @@ export default function LoginPage() {
     </div>
   );
 }
-<div className="flex justify-center">
-  <Logo size={120} showText={false} />
-</div>

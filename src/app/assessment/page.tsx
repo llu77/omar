@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { 
   Activity, Shield, User, FileText, Bot, Briefcase, 
   Stethoscope, Sparkles, UserCheck, HeartPulse, Bone,
-  Brain, Loader2, Info, CheckCircle2
+  Brain, Loader2, Info, CheckCircle2, ArrowRight, ArrowLeft
 } from "lucide-react";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/tooltip";
 
 const formSchema = z.object({
-  name: z.string().min(2, "الاسم مطلوب"),
+  name: z.string().min(2, "الاسم مطلوب (حرفين على الأقل)"),
   age: z.string().refine((val) => !isNaN(parseInt(val, 10)) && parseInt(val, 10) > 0 && parseInt(val, 10) < 150, {
     message: "يجب أن يكون العمر رقمًا صحيحًا بين 1 و 150",
   }),
@@ -84,9 +84,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
-  { id: 1, title: "المعلومات الأساسية", icon: UserCheck },
-  { id: 2, title: "التقييم الحركي", icon: Activity },
-  { id: 3, title: "التاريخ الطبي", icon: HeartPulse },
+  { id: 1, title: "المعلومات الأساسية", icon: UserCheck, fields: ['name', 'age', 'gender', 'job', 'symptoms'] },
+  { id: 2, title: "التقييم الحركي", icon: Activity, fields: ['neck', 'trunk', 'standing', 'walking'] },
+  { id: 3, title: "التاريخ الطبي", icon: HeartPulse, fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
 ];
 
 export default function AssessmentPage() {
@@ -118,27 +118,34 @@ export default function AssessmentPage() {
       gender: undefined,
       job: "",
       symptoms: "",
+      medications: undefined,
       medications_details: "",
+      fractures: undefined,
       fractures_details: "",
     },
-    mode: "onChange",
+    mode: "onTouched",
   });
 
-  const watchMedications = form.watch("medications");
-  const watchFractures = form.watch("fractures");
+  const watchedFields = useWatch({ control: form.control });
 
-  // حساب نسبة التقدم
   useEffect(() => {
-    const subscription = form.watch((values) => {
-      const fields = Object.keys(values);
-      const filledFields = fields.filter(key => {
-        const value = values[key as keyof typeof values];
-        return value && value !== "";
-      });
-      setFormProgress((filledFields.length / fields.length) * 100);
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
+    const totalFields = Object.keys(form.getValues()).length - 2; // Exclude optional details fields initially
+    const filledFields = Object.values(watchedFields).filter(value => value !== "" && value !== undefined).length;
+    setFormProgress((filledFields / totalFields) * 100);
+  }, [watchedFields, form]);
+  
+
+  const nextStep = async () => {
+    const fieldsToValidate = steps[currentStep - 1].fields;
+    const isValid = await form.trigger(fieldsToValidate as any);
+    if (isValid) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => prev - 1);
+  };
 
   function onSubmit(values: FormValues) {
     const patientData: PatientDataForAI = {
@@ -154,8 +161,6 @@ export default function AssessmentPage() {
       walking: values.walking,
       medications: values.medications === "yes" ? `نعم - ${values.medications_details}` : "لا",
       fractures: values.fractures === "yes" ? `نعم - ${values.fractures_details}` : "لا",
-      createdAt: new Date().toISOString(),
-      userId: user?.uid,
     };
     
     startTransition(() => {
@@ -178,72 +183,72 @@ export default function AssessmentPage() {
 
   const radioOptions = {
     control: [
-      { value: "yes", label: "نعم", color: "text-green-600" },
-      { value: "partially", label: "جزئياً", color: "text-yellow-600" },
-      { value: "no", label: "لا", color: "text-red-600" },
+      { value: "yes", label: "تحكم كامل" },
+      { value: "partially", label: "تحكم جزئي" },
+      { value: "no", label: "لا يوجد تحكم" },
     ],
     assistance: [
-      { value: "yes", label: "نعم", color: "text-green-600" },
-      { value: "with assistance", label: "بمساعدة", color: "text-yellow-600" },
-      { value: "no", label: "لا", color: "text-red-600" },
+      { value: "yes", label: "نعم، بشكل مستقل" },
+      { value: "with assistance", label: "نعم، بمساعدة" },
+      { value: "no", label: "لا" },
     ],
     yesNo: [
-      { value: "yes", label: "نعم", color: "text-green-600" },
-      { value: "no", label: "لا", color: "text-red-600" },
+      { value: "yes", label: "نعم" },
+      { value: "no", label: "لا" },
     ],
   };
 
-  const renderRadioGroup = (name: keyof FormValues, options: {value: string; label: string; color: string}[]) => (
+  const renderRadioGroup = (name: keyof FormValues, options: {value: string; label: string}[]) => (
     <FormField
       control={form.control}
       name={name}
       render={({ field }) => (
-        <FormControl>
-          <RadioGroup
-            onValueChange={field.onChange}
-            defaultValue={field.value}
-            className="flex flex-wrap gap-4"
-          >
-            {options.map((option) => (
-              <FormItem key={option.value} className="flex items-center space-x-2 space-x-reverse">
-                <FormControl>
-                  <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
-                </FormControl>
-                <FormLabel 
-                  htmlFor={`${name}-${option.value}`} 
-                  className={`font-normal cursor-pointer ${field.value === option.value ? option.color : ''}`}
-                >
-                  {option.label}
-                </FormLabel>
-              </FormItem>
-            ))}
-          </RadioGroup>
-        </FormControl>
+        <FormItem>
+          <FormControl>
+            <RadioGroup
+              onValueChange={field.onChange}
+              value={field.value}
+              className="flex flex-wrap gap-4"
+            >
+              {options.map((option) => (
+                <FormItem key={option.value} className="flex items-center space-x-2 space-x-reverse">
+                  <FormControl>
+                    <RadioGroupItem value={option.value} id={`${name}-${option.value}`} />
+                  </FormControl>
+                  <FormLabel 
+                    htmlFor={`${name}-${option.value}`} 
+                    className="font-normal cursor-pointer"
+                  >
+                    {option.label}
+                  </FormLabel>
+                </FormItem>
+              ))}
+            </RadioGroup>
+          </FormControl>
+          <FormMessage />
+        </FormItem>
       )}
     />
   );
-
+  
   if (loading || !user) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-center mb-8">
-          <Skeleton className="h-32 w-32 rounded-full" />
+      <div className="w-full mx-auto max-w-4xl space-y-8">
+        <div className="text-center mb-10">
+          <Skeleton className="h-10 w-64 mx-auto" />
+          <Skeleton className="h-6 w-96 mx-auto mt-4" />
         </div>
-        <Skeleton className="h-24 w-full" />
-        <div className="space-y-4">
-          <Skeleton className="h-48 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
   return (
-    <div className="w-full mx-auto max-w-5xl">
-      {/* Header with Logo */}
+    <div className="w-full mx-auto max-w-4xl">
       <div className="text-center mb-10">
         <div className="flex justify-center mb-6">
-          <Logo className="w-32 h-32" showText={false} />
+          <Logo className="w-24 h-24" showText={false} />
         </div>
         <h1 className="text-4xl font-bold font-headline flex items-center justify-center gap-3">
           <FileText className="text-primary" />
@@ -254,53 +259,26 @@ export default function AssessmentPage() {
         </p>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-8">
+      <div className="mb-8 p-4 bg-secondary/50 rounded-lg">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">نسبة إكمال النموذج</span>
+          <span className="text-sm text-muted-foreground">الخطوة الحالية: <span className="font-bold text-primary">{steps[currentStep - 1].title}</span></span>
           <span className="text-sm font-medium">{Math.round(formProgress)}%</span>
         </div>
         <Progress value={formProgress} className="h-2" />
       </div>
 
-      {/* Step Indicator */}
-      <div className="flex justify-center mb-8">
-        <div className="flex items-center gap-4">
-          {steps.map((step, index) => (
-            <div key={step.id} className="flex items-center">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
-                currentStep === step.id 
-                  ? 'bg-primary text-primary-foreground' 
-                  : currentStep > step.id
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/20'
-                  : 'bg-secondary text-muted-foreground'
-              }`}>
-                <step.icon className="w-5 h-5" />
-                <span className="font-medium hidden sm:inline">{step.title}</span>
-                <span className="font-medium sm:hidden">{step.id}</span>
-              </div>
-              {index < steps.length - 1 && (
-                <div className={`w-12 h-1 mx-2 ${
-                  currentStep > step.id ? 'bg-green-500' : 'bg-secondary'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Step 1: Basic Information */}
+          
           {currentStep === 1 && (
-            <Card className="bg-secondary/30 border-primary/20 shadow-lg">
+            <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-primary">
                   <UserCheck />
                   المعلومات الأساسية والشخصية
                 </CardTitle>
                 <CardDescription>
-                  يرجى إدخال البيانات الأساسية للمريض بدقة
+                  يرجى إدخال البيانات الأساسية للمريض بدقة. هذه المعلومات هي حجر الأساس للخطة العلاجية.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -308,18 +286,14 @@ export default function AssessmentPage() {
                   <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
                       <FormLabel>اسم المريض <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input placeholder="الاسم الكامل" {...field} />
-                      </FormControl>
+                      <FormControl><Input placeholder="الاسم الكامل" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}/>
                   <FormField control={form.control} name="age" render={({ field }) => (
                     <FormItem>
                       <FormLabel>العمر <span className="text-red-500">*</span></FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="بالسنوات" min="1" max="150" {...field} />
-                      </FormControl>
+                      <FormControl><Input type="number" placeholder="بالسنوات" min="1" max="150" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}/>
@@ -327,11 +301,7 @@ export default function AssessmentPage() {
                     <FormItem>
                       <FormLabel>الجنس <span className="text-red-500">*</span></FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر الجنس" />
-                          </SelectTrigger>
-                        </FormControl>
+                        <FormControl><SelectTrigger><SelectValue placeholder="اختر الجنس" /></SelectTrigger></FormControl>
                         <SelectContent>
                           <SelectItem value="male">ذكر</SelectItem>
                           <SelectItem value="female">أنثى</SelectItem>
@@ -344,234 +314,153 @@ export default function AssessmentPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField control={form.control} name="job" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>
-                        مهنة المريض <span className="text-red-500">*</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="inline-block w-4 h-4 mr-1 text-muted-foreground" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>المهنة مهمة لتخصيص البرنامج التأهيلي</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </FormLabel>
-                      <FormControl>
-                        <Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} />
-                      </FormControl>
+                      <FormLabel>مهنة المريض <span className="text-red-500">*</span></FormLabel>
+                      <FormControl><Input placeholder="مثال: موظف مكتبي، عامل بناء..." {...field} /></FormControl>
+                      <FormDescription>المهنة مهمة لتخصيص البرنامج التأهيلي.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}/>
                   <div>
                     <FormLabel>رقم الملف</FormLabel>
                     <Input disabled value={fileNumber} className="mt-2 bg-muted/50 border-dashed font-mono" />
-                    <FormDescription>يتم توليده تلقائياً</FormDescription>
+                    <FormDescription>يتم توليده تلقائياً ولا يمكن تغييره.</FormDescription>
                   </div>
                 </div>
                 <FormField control={form.control} name="symptoms" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      وصف الأعراض الرئيسية <span className="text-red-500">*</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="inline-block w-4 h-4 mr-1 text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>كلما كان الوصف أكثر تفصيلاً، كلما كانت الخطة أدق</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." 
-                        {...field} 
-                        rows={4}
-                        className="resize-none"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {field.value?.length || 0} / 10 حرف (الحد الأدنى)
-                    </FormDescription>
+                    <FormLabel>وصف الأعراض الرئيسية <span className="text-red-500">*</span></FormLabel>
+                     <FormControl><Textarea placeholder="يرجى وصف الأعراض بالتفصيل، مثل مكان الألم، طبيعته، ومتى يزداد..." {...field} rows={4} /></FormControl>
+                     <FormDescription>كلما كان الوصف أكثر تفصيلاً، كانت الخطة أدق.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}/>
-                <div className="flex justify-end">
-                  <Button 
-                    type="button" 
-                    onClick={() => setCurrentStep(2)}
-                    disabled={!form.getValues("name") || !form.getValues("age") || !form.getValues("gender") || !form.getValues("job") || !form.getValues("symptoms")}
-                  >
-                    التالي
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Step 2: Functional Assessment */}
           {currentStep === 2 && (
-            <Card className="bg-secondary/30 border-primary/20 shadow-lg">
+             <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-primary">
                   <Activity />
                   تقييم الحالة الوظيفية والحركية
                 </CardTitle>
                 <CardDescription>
-                  تقييم القدرات الحركية الحالية للمريض
+                  تقييم القدرات الحركية الحالية للمريض لتحديد خط الأساس.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Brain className="w-4 h-4" />
-                    التحكم بالرقبة <span className="text-red-500">*</span>
-                  </FormLabel>
-                  {renderRadioGroup("neck", radioOptions.control)}
-                  <FormMessage className="mt-2">{form.formState.errors.neck?.message}</FormMessage>
-                </FormItem>
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    التحكم بالجذع <span className="text-red-500">*</span>
-                  </FormLabel>
-                  {renderRadioGroup("trunk", radioOptions.control)}
-                  <FormMessage className="mt-2">{form.formState.errors.trunk?.message}</FormMessage>
-                </FormItem>
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    الوقوف <span className="text-red-500">*</span>
-                  </FormLabel>
-                  {renderRadioGroup("standing", radioOptions.assistance)}
-                  <FormMessage className="mt-2">{form.formState.errors.standing?.message}</FormMessage>
-                </FormItem>
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    المشي <span className="text-red-500">*</span>
-                  </FormLabel>
-                  {renderRadioGroup("walking", radioOptions.assistance)}
-                  <FormMessage className="mt-2">{form.formState.errors.walking?.message}</FormMessage>
-                </FormItem>
-                <div className="md:col-span-2 flex justify-between mt-4">
-                  <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
-                    السابق
-                  </Button>
-                  <Button 
-                    type="button" 
-                    onClick={() => setCurrentStep(3)}
-                    disabled={!form.getValues("neck") || !form.getValues("trunk") || !form.getValues("standing") || !form.getValues("walking")}
-                  >
-                    التالي
-                    <CheckCircle2 className="mr-2 h-5 w-5" />
-                  </Button>
+              <CardContent className="space-y-8">
+                  <FormField control={form.control} name="neck" render={() => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Brain className="w-5 h-5" />التحكم بالرقبة <span className="text-red-500">*</span></FormLabel>
+                      {renderRadioGroup("neck", radioOptions.control)}
+                    </FormItem>
+                  )}/>
+                   <FormField control={form.control} name="trunk" render={() => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Activity className="w-5 h-5" />التحكم بالجذع <span className="text-red-500">*</span></FormLabel>
+                      {renderRadioGroup("trunk", radioOptions.control)}
+                     </FormItem>
+                  )}/>
+                   <FormField control={form.control} name="standing" render={() => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><User className="w-5 h-5" />القدرة على الوقوف <span className="text-red-500">*</span></FormLabel>
+                      {renderRadioGroup("standing", radioOptions.assistance)}
+                     </FormItem>
+                  )}/>
+                  <FormField control={form.control} name="walking" render={() => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Activity className="w-5 h-5" />القدرة على المشي <span className="text-red-500">*</span></FormLabel>
+                      {renderRadioGroup("walking", radioOptions.assistance)}
+                    </FormItem>
+                  )}/>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 3 && (
+            <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-primary"><HeartPulse />التاريخ الطبي</CardTitle>
+                <CardDescription>معلومات عن الأدوية والإصابات السابقة لتجنب أي موانع علاجية.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                     <FormField control={form.control} name="medications" render={() => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Shield size={18}/>هل يتناول المريض أي أدوية؟ <span className="text-red-500">*</span></FormLabel>
+                          {renderRadioGroup("medications", radioOptions.yesNo)}
+                        </FormItem>
+                      )}/>
+                    {form.watch("medications") === 'yes' && (
+                      <FormField control={form.control} name="medications_details" render={({ field }) => (
+                        <FormItem className="animate-in slide-in-from-top-4">
+                          <FormLabel>تفاصيل الأدوية <span className="text-red-500">*</span></FormLabel>
+                          <FormControl><Textarea placeholder="يرجى ذكر أسماء الأدوية والجرعات والغرض من كل دواء" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}/>
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <FormField control={form.control} name="fractures" render={() => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Bone size={18}/>هل يعاني المريض من أي كسور؟ <span className="text-red-500">*</span></FormLabel>
+                        {renderRadioGroup("fractures", radioOptions.yesNo)}
+                      </FormItem>
+                    )}/>
+                    {form.watch("fractures") === 'yes' && (
+                      <FormField control={form.control} name="fractures_details" render={({ field }) => (
+                        <FormItem className="animate-in slide-in-from-top-4">
+                          <FormLabel>تفاصيل الكسور <span className="text-red-500">*</span></FormLabel>
+                          <FormControl><Textarea placeholder="يرجى تحديد موقع الكسر وتاريخه ومرحلة الشفاء الحالية" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}/>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Step 3: Medical History */}
-          {currentStep === 3 && (
-            <Card className="bg-secondary/30 border-primary/20 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary">
-                  <HeartPulse />
-                  التاريخ الطبي
-                </CardTitle>
-                <CardDescription>
-                  معلومات عن الأدوية والإصابات السابقة
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Shield size={16}/>
-                        هل يتناول المريض أي أدوية؟ <span className="text-red-500">*</span>
-                      </FormLabel>
-                      {renderRadioGroup("medications", radioOptions.yesNo)}
-                      <FormMessage className="mt-2">{form.formState.errors.medications?.message}</FormMessage>
-                    </FormItem>
-                    {watchMedications === 'yes' && (
-                      <FormField control={form.control} name="medications_details" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-2">
-                          <FormLabel>تفاصيل الأدوية <span className="text-red-500">*</span></FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="يرجى ذكر أسماء الأدوية والجرعات والغرض من كل دواء" 
-                              {...field}
-                              rows={3}
-                              className="resize-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <FormItem>
-                      <FormLabel className="flex items-center gap-2">
-                        <Bone size={16}/>
-                        هل يعاني المريض من أي كسور؟ <span className="text-red-500">*</span>
-                      </FormLabel>
-                      {renderRadioGroup("fractures", radioOptions.yesNo)}
-                      <FormMessage className="mt-2">{form.formState.errors.fractures?.message}</FormMessage>
-                    </FormItem>
-                    {watchFractures === 'yes' && (
-                      <FormField control={form.control} name="fractures_details" render={({ field }) => (
-                        <FormItem className="animate-in slide-in-from-top-2">
-                          <FormLabel>تفاصيل الكسور <span className="text-red-500">*</span></FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="يرجى تحديد موقع الكسر وتاريخه ومرحلة الشفاء الحالية" 
-                              {...field}
-                              rows={3}
-                              className="resize-none"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}/>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between pt-4">
-                  <Button type="button" variant="outline" onClick={() => setCurrentStep(2)}>
-                    السابق
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    size="lg" 
-                    disabled={form.formState.isSubmitting || isPending}
-                    className="min-w-[200px]"
-                  >
-                    {isPending ? (
-                      <>
-                        <Loader2 className="ml-2 h-5 w-5 animate-spin" />
-                        جاري تحليل البيانات...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="ml-2 h-5 w-5" />
-                        توليد الخطة بالذكاء الاصطناعي
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <div className="flex items-center justify-between mt-8">
+            {currentStep > 1 ? (
+              <Button type="button" variant="outline" size="lg" onClick={prevStep}>
+                <ArrowRight className="ml-2 h-5 w-5" />
+                السابق
+              </Button>
+            ) : <div />}
+
+            {currentStep < steps.length ? (
+              <Button type="button" size="lg" onClick={nextStep}>
+                التالي
+                <ArrowLeft className="mr-2 h-5 w-5" />
+              </Button>
+            ) : (
+              <Button 
+                type="submit" 
+                size="lg" 
+                disabled={isPending}
+                className="min-w-[200px]"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+                    جاري تحليل البيانات...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="ml-2 h-5 w-5" />
+                    توليد الخطة بالذكاء الاصطناعي
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </form>
       </Form>
     </div>
   );
 }
-<div className="flex justify-center mb-6">
-  <Logo size={150} showText={false} />
-</div>
