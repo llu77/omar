@@ -8,6 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { PatientDataForAI } from "@/types";
@@ -15,7 +21,7 @@ import { considerPatientInfo } from "@/ai/flows/consider-patient-info";
 import type { ConsiderPatientInfoOutput } from "@/ai/flows/consider-patient-info";
 import { generateRehabPlan } from "@/ai/flows/generate-rehab-plan";
 import type { GenerateRehabPlanOutput } from "@/ai/flows/generate-rehab-plan";
-import { AlertCircle, User, FileText, Bot, Lightbulb, Target, ShieldCheck, CalendarClock, LineChart } from "lucide-react";
+import { AlertCircle, User, FileText, Bot, Lightbulb, ShieldCheck, CalendarClock, LineChart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
@@ -43,15 +49,17 @@ export default function ReportPage({
       try {
         setLoading(true);
         setError(null);
+        
         const [considerationResult, rehabPlanResult] = await Promise.all([
           considerPatientInfo(data),
           generateRehabPlan(data),
         ]);
+
         setConsideration(considerationResult);
         setRehabPlan(rehabPlanResult);
-      } catch (aiError) {
+      } catch (aiError: any) {
         console.error("AI Generation Error:", aiError);
-        setError("حدث خطأ أثناء توليد التقرير بواسطة الذكاء الاصطناعي.");
+        setError(aiError.message || "حدث خطأ أثناء توليد التقرير بواسطة الذكاء الاصطناعي.");
       } finally {
         setLoading(false);
       }
@@ -71,11 +79,29 @@ export default function ReportPage({
     }
   }, [params.fileNumber]);
 
-  const renderFormattedText = (text: string) => {
-    return text.split('\n').map((paragraph, index) => (
-      <p key={index} className="mb-2">{paragraph}</p>
-    ));
-  };
+  const renderFormattedPlan = (text: string) => {
+    const sections = text.split(/\n(?=\d+\.\s+Week \d+)/);
+    return (
+        <Accordion type="single" collapsible className="w-full">
+            {sections.map((section, index) => {
+                const match = section.match(/(\d+\.\s+Week \d+.*)/);
+                const title = match ? match[0] : `الأسبوع ${index + 1}`;
+                const content = section.replace(title, '').trim();
+
+                return (
+                    <AccordionItem value={`item-${index}`} key={index}>
+                        <AccordionTrigger className="text-lg font-semibold">{title}</AccordionTrigger>
+                        <AccordionContent>
+                            {content.split('\n').map((paragraph, pIndex) => (
+                                <p key={pIndex} className="mb-2 text-muted-foreground">{paragraph}</p>
+                            ))}
+                        </AccordionContent>
+                    </AccordionItem>
+                );
+            })}
+        </Accordion>
+    );
+};
   
   if (loading) {
      return (
@@ -84,21 +110,25 @@ export default function ReportPage({
             <CardHeader>
               <CardTitle className="text-3xl font-headline flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <FileText />
-                  تقرير التأهيل الطبي
+                  <Bot />
+                  جاري إنشاء تقرير التأهيل الطبي...
                 </div>
                 <Skeleton className="h-8 w-40" />
               </CardTitle>
               <CardDescription>
-                هذا التقرير تم إنشاؤه بواسطة الذكاء الاصطناعي ويجب مراجعته من قبل أخصائي مؤهل.
+                يقوم الذكاء الاصطناعي بتحليل البيانات الآن. قد يستغرق هذا بضع لحظات.
               </CardDescription>
             </CardHeader>
           </Card>
-          <Skeleton className="h-40 w-full" />
+          <div className="grid md:grid-cols-2 gap-6">
+            <Skeleton className="h-48 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
           <div className="space-y-4">
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-64 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
               <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-12 w-full" />
           </div>
         </div>
       )
@@ -176,9 +206,9 @@ export default function ReportPage({
               <CardTitle className="flex items-center gap-2 text-primary"><Bot />الخطة التأهيلية المقترحة</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-sm max-w-none text-foreground">
-                  {renderFormattedText(rehabPlan.rehabPlan)}
-              </div>
+                <div className="prose prose-sm max-w-none text-foreground">
+                    {renderFormattedPlan(rehabPlan.rehabPlan)}
+                </div>
             </CardContent>
           </Card>
 

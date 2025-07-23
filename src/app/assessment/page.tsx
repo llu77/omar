@@ -56,10 +56,10 @@ const formSchema = z.object({
   medications_details: z.string().optional(),
   fractures: z.enum(["yes", "no"], { required_error: "الحقل مطلوب" }),
   fractures_details: z.string().optional(),
-}).refine(data => data.medications === 'no' || (data.medications === 'yes' && data.medications_details && data.medications_details.trim() !== ''), {
+}).refine(data => data.medications !== 'yes' || (data.medications_details && data.medications_details.trim() !== ''), {
   message: 'يرجى تقديم تفاصيل عن الأدوية',
   path: ['medications_details'],
-}).refine(data => data.fractures === 'no' || (data.fractures === 'yes' && data.fractures_details && data.fractures_details.trim() !== ''), {
+}).refine(data => data.fractures !== 'yes' || (data.fractures_details && data.fractures_details.trim() !== ''), {
   message: 'يرجى تقديم تفاصيل عن الكسور',
   path: ['fractures_details'],
 });
@@ -105,23 +105,23 @@ export default function AssessmentPage() {
       medications: values.medications === "yes" ? `نعم - ${values.medications_details}` : "لا",
       fractures: values.fractures === "yes" ? `نعم - ${values.fractures_details}` : "لا",
     };
-
-    try {
-      localStorage.setItem(`report-${fileNumber}`, JSON.stringify(patientData));
-      toast({
-        title: "تم حفظ البيانات بنجاح",
-        description: `جاري توليد التقرير للملف رقم: ${fileNumber}`,
-      });
-      startTransition(() => {
+    
+    startTransition(() => {
+      try {
+        localStorage.setItem(`report-${fileNumber}`, JSON.stringify(patientData));
+        toast({
+          title: "تم حفظ البيانات بنجاح",
+          description: `جاري توليد التقرير للملف رقم: ${fileNumber}`,
+        });
         router.push(`/report/${fileNumber}`);
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "خطأ في الحفظ",
-        description: "لم نتمكن من حفظ البيانات في المتصفح. قد تكون مساحة التخزين ممتلئة.",
-      });
-    }
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "خطأ في الحفظ",
+          description: "لم نتمكن من حفظ البيانات في المتصفح. قد تكون مساحة التخزين ممتلئة.",
+        });
+      }
+    });
   }
 
   const radioOptions = {
