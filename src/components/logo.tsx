@@ -18,13 +18,12 @@ export function Logo({
           xmlns="http://www.w3.org/2000/svg"
           className="w-full h-full object-contain"
         >
+          {/* Outer Circle */}
+          <circle cx="50" cy="50" r="45" stroke="hsl(var(--primary))" strokeWidth="8" />
+
+          {/* Corrected 'W' with EKG Pulse */}
           <path
-            d="M50 95C74.8528 95 95 74.8528 95 50C95 25.1472 74.8528 5 50 5C25.1472 5 5 25.1472 5 50C5 74.8528 25.1472 95 50 95Z"
-            stroke="hsl(var(--primary))"
-            strokeWidth="8"
-          />
-          <path
-            d="M30 65L40 35L45 50L50 45L55 55L60 35L70 65"
+            d="M25 35L40 65L47 50L53 50L60 35L75 65"
             stroke="hsl(var(--primary))"
             strokeWidth="8"
             strokeLinecap="round"
