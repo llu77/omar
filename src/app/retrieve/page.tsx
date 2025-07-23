@@ -18,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SavedReport {
   fileNumber: string;
-  patientName: string;
+  name: string; // patient name
   createdAt: Date;
   source: 'local' | 'cloud';
 }
@@ -57,7 +57,7 @@ export default function RetrievePage() {
              const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
             reportsMap.set(data.fileNumber, {
               fileNumber: data.fileNumber,
-              patientName: data.name,
+              name: data.name,
               createdAt: createdAt,
               source: 'local',
             });
@@ -78,7 +78,7 @@ export default function RetrievePage() {
         const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
         reportsMap.set(data.fileNumber, {
           fileNumber: data.fileNumber,
-          patientName: data.patientName,
+          name: data.name, // patient name is stored in the report document
           createdAt: createdAt,
           source: 'cloud',
         });
@@ -184,7 +184,7 @@ export default function RetrievePage() {
                           ? <div className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div> 
                           : <div className="h-5 w-5 text-green-500" title="محفوظ محلياً"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></div>}
                         <div>
-                          <p className="font-semibold">{report.patientName}</p>
+                          <p className="font-semibold">{report.name}</p>
                           <p className="text-sm text-muted-foreground">
                             <Badge variant="outline" className="font-mono">{report.fileNumber}</Badge>
                           </p>
