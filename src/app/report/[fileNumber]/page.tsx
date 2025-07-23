@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useTransition, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import type { PatientDataForAI } from "@/types";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
@@ -29,9 +29,10 @@ import { Separator } from "@/components/ui/separator";
 
 type ReportGenerationState = 'idle' | 'considering' | 'generating' | 'done' | 'error';
 
-export default function ReportPage({ params }: { params: { fileNumber: string } }) {
+function ReportView() {
   const router = useRouter();
-  const { fileNumber } = params;
+  const params = useParams();
+  const fileNumber = params.fileNumber as string;
   const { toast } = useToast();
   const [user, loading] = useAuthState(auth);
   const [isSaving, startSavingTransition] = useTransition();
@@ -78,6 +79,7 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
   }, [toast]);
 
   useEffect(() => {
+    if (!fileNumber) return;
     try {
       const data = localStorage.getItem(`report-${fileNumber}`);
       if (data) {
@@ -287,4 +289,8 @@ export default function ReportPage({ params }: { params: { fileNumber: string } 
       </div>
     </div>
   );
+}
+
+export default function ReportPage({ params }: { params: { fileNumber: string } }) {
+  return <ReportView />;
 }
