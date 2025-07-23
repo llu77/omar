@@ -12,6 +12,8 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const ConsiderPatientInfoInputSchema = z.object({
+  job: z.string().describe("The patient's job."),
+  symptoms: z.string().describe("The patient's symptoms."),
   age: z.number().describe('The age of the patient.'),
   gender: z.string().describe('The gender of the patient.'),
   neck: z.string().describe('The neck control status of the patient (yes/partially/no).'),
