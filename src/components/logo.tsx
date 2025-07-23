@@ -97,7 +97,7 @@ export function Logo({
             <circle cx="192" cy="120" r="1.5" />
             <circle cx="170" cy="140" r="1" />
             <circle cx="150" cy="160" r="1.5" />
-            <circle cx="165,55" r="1" />
+            <circle cx="165.5" r="1" />
           </g>
         </svg>
       </div>

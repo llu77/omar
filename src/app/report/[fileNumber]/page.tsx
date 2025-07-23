@@ -93,7 +93,9 @@ export default function ReportPage() {
     } catch (error: any) {
       console.error("Error loading or generating report:", error);
       let message = "حدث خطأ غير متوقع.";
-      if (error.message.includes("not found")) {
+      if (error.code === 'permission-denied' || error.message.includes('permission')) {
+          message = "ليس لديك الصلاحية لعرض هذا التقرير أو حدث خطأ في الصلاحيات. تأكد من أن قواعد الأمان في Firebase صحيحة.";
+      } else if (error.message.includes("not found")) {
         message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
       } else if (error.message.includes("AI")) {
         message = `فشل توليد التقرير بالذكاء الاصطناعي: ${error.message}`;
@@ -112,11 +114,17 @@ export default function ReportPage() {
     startSavingTransition(async () => {
       try {
         const reportDocRef = doc(db, "reports", reportData.fileNumber);
-        await setDoc(reportDocRef, {
+        const dataToSave = {
           ...reportData,
           userId: user.uid,
           createdAt: Timestamp.now(),
-        });
+        };
+        // We don't need to save the name in the report document itself
+        // as we can retrieve it from the user's profile.
+        // delete (dataToSave as any).name;
+
+        await setDoc(reportDocRef, dataToSave);
+
         setIsSaved(true);
         toast({
           title: "تم الحفظ بنجاح",
@@ -127,7 +135,7 @@ export default function ReportPage() {
         toast({
           variant: "destructive",
           title: "فشل الحفظ",
-          description: "لم نتمكن من حفظ التقرير في السحابة. تحقق من اتصالك بالإنترنت.",
+          description: "لم نتمكن من حفظ التقرير في السحابة. تحقق من اتصالك بالإنترنت وقواعد الأمان.",
         });
       }
     });
@@ -168,7 +176,7 @@ export default function ReportPage() {
         if (!reportData) return null;
         return (
           <>
-            <header className="flex flex-col sm:flex-row items-center justify-between mb-8 print:hidden">
+            <header className="flex flex-col sm:flex-row items-center justify-between mb-8 no-print">
               <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">
                 التقرير الطبي الشامل
               </h1>
@@ -177,7 +185,12 @@ export default function ReportPage() {
                    <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg></div>
                   طباعة / حفظ PDF
                 </Button>
-                {!isSaved && (
+                 {isSaved ? (
+                  <Button disabled variant="secondary">
+                     <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                    تم الحفظ بنجاح
+                  </Button>
+                ) : (
                   <Button onClick={handleSaveToCloud} disabled={isSaving}>
                      {isSaving ? (
                       <>
@@ -190,12 +203,6 @@ export default function ReportPage() {
                         الحفظ في السحابة
                       </>
                     )}
-                  </Button>
-                )}
-                 {isSaved && (
-                  <Button disabled variant="secondary">
-                     <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                    تم الحفظ بنجاح
                   </Button>
                 )}
               </div>
