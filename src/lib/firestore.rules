@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isTherapist() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'therapist';
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isTherapist() || isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Patients collection
+    match /patients/{patientId} {
+      allow read: if isAuthenticated();
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Assessments collection
+    match /assessments/{assessmentId} {
+      allow read: if isAuthenticated();
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+      allow create: if isTherapist() || isAdmin();
+      allow update: if isTherapist() || isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
