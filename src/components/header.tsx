@@ -10,7 +10,7 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           <Link href="/" className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-full flex items-center justify-center w-12 h-12">
-                <Logo className="text-primary w-full h-full" />
+                <Logo className="text-primary" />
             </div>
             <span className="text-2xl font-bold font-headline text-primary">
               وصّل للتأهيل الطبي

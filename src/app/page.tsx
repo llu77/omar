@@ -10,7 +10,7 @@ export default function Home() {
       <Card className="w-full max-w-2xl text-center shadow-2xl">
         <CardHeader className="items-center">
           <div className="p-4 bg-primary/10 rounded-full flex items-center justify-center w-24 h-24 mb-4">
-            <Logo className="text-primary w-full h-full" />
+            <Logo className="text-primary" />
           </div>
           <CardTitle className="text-4xl font-headline">وصّل للتأهيل الطبي</CardTitle>
           <CardDescription className="text-lg">
