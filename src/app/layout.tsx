@@ -49,7 +49,7 @@ export default function RootLayout({
               {children}
             </main>
             <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-              <p>© 2025 Wassel for Medical Rehabilitation. All rights reserved.</p>
+              <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
             </footer>
           </div>
           <Toaster />
