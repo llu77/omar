@@ -18,9 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  experimental: {
-    transpilePackages: ['firebase'],
-  }
+  transpilePackages: ['firebase'],
 };
 
 export default nextConfig;
