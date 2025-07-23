@@ -34,22 +34,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Activity, Shield, User, FileText, Bot, Briefcase, 
-  Stethoscope, Sparkles, UserCheck, HeartPulse, Bone,
-  Brain, Loader2, Info, CheckCircle2, ArrowRight, ArrowLeft
-} from "lucide-react";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/logo";
 import { Progress } from "@/components/ui/progress";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب (حرفين على الأقل)"),
@@ -84,9 +73,9 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const steps = [
-  { id: 1, title: "المعلومات الأساسية", icon: UserCheck, fields: ['name', 'age', 'gender', 'job', 'symptoms'] },
-  { id: 2, title: "التقييم الحركي", icon: Activity, fields: ['neck', 'trunk', 'standing', 'walking'] },
-  { id: 3, title: "التاريخ الطبي", icon: HeartPulse, fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
+  { id: 1, title: "المعلومات الأساسية", fields: ['name', 'age', 'gender', 'job', 'symptoms'] },
+  { id: 2, title: "التقييم الحركي", fields: ['neck', 'trunk', 'standing', 'walking'] },
+  { id: 3, title: "التاريخ الطبي", fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
 ];
 
 export default function AssessmentPage() {
@@ -251,7 +240,7 @@ export default function AssessmentPage() {
           <Logo className="w-24 h-24" showText={false} />
         </div>
         <h1 className="text-4xl font-bold font-headline flex items-center justify-center gap-3">
-          <FileText className="text-primary" />
+          <div className="h-8 w-8 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
           نموذج تقييم المريض
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
@@ -274,7 +263,7 @@ export default function AssessmentPage() {
             <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-primary">
-                  <UserCheck />
+                  <div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m22 11-2.5 2.5L17 11"/></svg></div>
                   المعلومات الأساسية والشخصية
                 </CardTitle>
                 <CardDescription>
@@ -342,7 +331,7 @@ export default function AssessmentPage() {
              <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-3 text-primary">
-                  <Activity />
+                  <div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
                   تقييم الحالة الوظيفية والحركية
                 </CardTitle>
                 <CardDescription>
@@ -352,25 +341,25 @@ export default function AssessmentPage() {
               <CardContent className="space-y-8">
                   <FormField control={form.control} name="neck" render={() => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Brain className="w-5 h-5" />التحكم بالرقبة <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 2c-1.8 0-3.5 1.4-4.3 3.4A6.1 6.1 0 0 0 4.1 8c-2.2 2-2.8 5.4-.6 7.6l.6.6c2.2 2.2 5.8 2.2 7.9 0l.6-.6c2.2-2.2 1.6-5.6-.6-7.6-.4-1-.4-2.1.2-3.1 1.7-3 0-6.4-3.5-6.4Z"/><path d="M14.5 2c1.8 0 3.5 1.4 4.3 3.4A6.1 6.1 0 0 1 19.9 8c2.2 2 2.8 5.4.6 7.6l-.6.6c-2.2 2.2-5.8 2.2-7.9 0l-.6-.6c-2.2-2.2-1.6-5.6.6-7.6.4-1 .4-2.1-.2-3.1-1.7-3 0-6.4 3.5-6.4Z"/></svg></div>التحكم بالرقبة <span className="text-red-500">*</span></FormLabel>
                       {renderRadioGroup("neck", radioOptions.control)}
                     </FormItem>
                   )}/>
                    <FormField control={form.control} name="trunk" render={() => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Activity className="w-5 h-5" />التحكم بالجذع <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>التحكم بالجذع <span className="text-red-500">*</span></FormLabel>
                       {renderRadioGroup("trunk", radioOptions.control)}
                      </FormItem>
                   )}/>
                    <FormField control={form.control} name="standing" render={() => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><User className="w-5 h-5" />القدرة على الوقوف <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>القدرة على الوقوف <span className="text-red-500">*</span></FormLabel>
                       {renderRadioGroup("standing", radioOptions.assistance)}
                      </FormItem>
                   )}/>
                   <FormField control={form.control} name="walking" render={() => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Activity className="w-5 h-5" />القدرة على المشي <span className="text-red-500">*</span></FormLabel>
+                      <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>القدرة على المشي <span className="text-red-500">*</span></FormLabel>
                       {renderRadioGroup("walking", radioOptions.assistance)}
                     </FormItem>
                   )}/>
@@ -381,7 +370,7 @@ export default function AssessmentPage() {
           {currentStep === 3 && (
             <Card className="bg-card border-primary/20 shadow-lg animate-in fade-in-50">
               <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-primary"><HeartPulse />التاريخ الطبي</CardTitle>
+                <CardTitle className="flex items-center gap-3 text-primary"><div className="h-6 w-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>التاريخ الطبي</CardTitle>
                 <CardDescription>معلومات عن الأدوية والإصابات السابقة لتجنب أي موانع علاجية.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-8">
@@ -389,7 +378,7 @@ export default function AssessmentPage() {
                   <div className="space-y-4">
                      <FormField control={form.control} name="medications" render={() => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Shield size={18}/>هل يتناول المريض أي أدوية؟ <span className="text-red-500">*</span></FormLabel>
+                          <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>هل يتناول المريض أي أدوية؟ <span className="text-red-500">*</span></FormLabel>
                           {renderRadioGroup("medications", radioOptions.yesNo)}
                         </FormItem>
                       )}/>
@@ -406,7 +395,7 @@ export default function AssessmentPage() {
                   <div className="space-y-4">
                     <FormField control={form.control} name="fractures" render={() => (
                       <FormItem>
-                        <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Bone size={18}/>هل يعاني المريض من أي كسور؟ <span className="text-red-500">*</span></FormLabel>
+                        <FormLabel className="flex items-center gap-2 text-lg font-semibold"><div className="h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 12a5 5 0 1 0-5-5"/><path d="M20 12a8 8 0 1 0-8 8"/><path d="M20 12h.01"/></svg></div>هل يعاني المريض من أي كسور؟ <span className="text-red-500">*</span></FormLabel>
                         {renderRadioGroup("fractures", radioOptions.yesNo)}
                       </FormItem>
                     )}/>
@@ -428,7 +417,7 @@ export default function AssessmentPage() {
           <div className="flex items-center justify-between mt-8">
             {currentStep > 1 ? (
               <Button type="button" variant="outline" size="lg" onClick={prevStep}>
-                <ArrowRight className="ml-2 h-5 w-5" />
+                <div className="ml-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
                 السابق
               </Button>
             ) : <div />}
@@ -436,7 +425,7 @@ export default function AssessmentPage() {
             {currentStep < steps.length ? (
               <Button type="button" size="lg" onClick={nextStep}>
                 التالي
-                <ArrowLeft className="mr-2 h-5 w-5" />
+                <div className="mr-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg></div>
               </Button>
             ) : (
               <Button 
@@ -447,12 +436,12 @@ export default function AssessmentPage() {
               >
                 {isPending ? (
                   <>
-                    <Loader2 className="ml-2 h-5 w-5 animate-spin" />
+                    <div className="ml-2 h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>
                     جاري تحليل البيانات...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="ml-2 h-5 w-5" />
+                    <div className="ml-2 h-5 w-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m5 3 2.06 2.06a8 8 0 0 0 10.88 10.88L20 21M12.5 8.5A2.5 2.5 0 0 1 15 11M8.1 4.1A2.5 2.5 0 0 1 4 6.5M3 21l2.06-2.06a8 8 0 0 0 10.88-10.88L4 3"/></svg></div>
                     توليد الخطة بالذكاء الاصطناعي
                   </>
                 )}

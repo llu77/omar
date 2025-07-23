@@ -18,8 +18,8 @@ const config = {
     },
     extend: {
       fontFamily: {
-        body: ["'Tajawal'", 'sans-serif'],
-        headline: ["'Tajawal'", 'sans-serif'],
+        sans: ["var(--font-tajawal)", 'sans-serif'],
+        headline: ["var(--font-tajawal)", 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
