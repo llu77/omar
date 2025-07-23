@@ -42,7 +42,7 @@ const prompt = ai.definePrompt({
   input: {schema: GenerateRehabPlanInputSchema},
   output: {schema: GenerateRehabPlanOutputSchema},
   model: 'openai/gpt-4o-mini',
-  prompt: `You are a medical rehabilitation consultant. A patient requires a detailed rehabilitation plan.
+  prompt: `You are a medical rehabilitation consultant. A patient requires a detailed rehabilitation plan. **All output must be in Arabic.**
 
 Analyze the patient's data, focusing on their job and symptoms to provide a comprehensive plan.
 
