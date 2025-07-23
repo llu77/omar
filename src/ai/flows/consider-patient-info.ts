@@ -39,7 +39,7 @@ const prompt = ai.definePrompt({
   name: 'considerPatientInfoPrompt',
   input: {schema: ConsiderPatientInfoInputSchema},
   output: {schema: ConsiderPatientInfoOutputSchema},
-  model: 'gpt-3.5-turbo',
+  model: 'gpt-4o',
   prompt: `You are an expert medical rehabilitation consultant providing a preliminary analysis. **All output must be in Arabic.**
 
 Based on the following patient data, provide a scientific and precise explanation of how the specified medical history points (medications and fractures) should be considered when designing the full rehabilitation plan.
