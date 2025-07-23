@@ -63,19 +63,20 @@ export default function RegisterPage() {
       });
       router.push("/");
     } catch (error: any) {
+        let description = "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
         if (error.code === 'auth/email-already-in-use') {
-             toast({
-                variant: "destructive",
-                title: "خطأ في التسجيل",
-                description: "هذا البريد الإلكتروني مسجل بالفعل.",
-            });
-        } else {
-            toast({
-                variant: "destructive",
-                title: "خطأ في التسجيل",
-                description: "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
-            });
+            description = "هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد إلكتروني آخر أو تسجيل الدخول.";
+        } else if (error.code === 'auth/weak-password') {
+            description = "كلمة المرور ضعيفة جدًا. يجب أن تتكون من 6 أحرف على الأقل.";
+        } else if (error.code === 'auth/invalid-email') {
+            description = "البريد الإلكتروني الذي أدخلته غير صالح.";
         }
+        
+        toast({
+            variant: "destructive",
+            title: "خطأ في التسجيل",
+            description: description,
+        });
     } finally {
       setLoading(false);
     }
