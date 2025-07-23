@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import {openAI} from 'genkitx-openai';
 
 const GenerateRehabPlanInputSchema = z.object({
   age: z.number().describe('The age of the patient.'),
@@ -34,28 +35,6 @@ export async function generateRehabPlan(input: GenerateRehabPlanInput): Promise<
   return generateRehabPlanFlow(input);
 }
 
-const rehabPlanPrompt = ai.definePrompt({
-  name: 'rehabPlanPrompt',
-  input: {schema: GenerateRehabPlanInputSchema},
-  output: {schema: GenerateRehabPlanOutputSchema},
-  prompt: `You are a physical therapist. Create a detailed rehabilitation plan for a patient based on the following information:
-
-Age: {{{age}}}
-Gender: {{{gender}}}
-Neck control: {{{neck}}}
-Trunk control: {{{trunk}}}
-Standing: {{{standing}}}
-Walking: {{{walking}}}
-Medications: {{{medications}}}
-Fractures: {{{fractures}}}
-
-Write:
-1. A detailed 12-week plan with exercises and repetitions.
-2. Expected recovery rate.
-3. Precautions.
-4. Review appointments.`,
-});
-
 const generateRehabPlanFlow = ai.defineFlow(
   {
     name: 'generateRehabPlanFlow',
@@ -63,7 +42,30 @@ const generateRehabPlanFlow = ai.defineFlow(
     outputSchema: GenerateRehabPlanOutputSchema,
   },
   async input => {
-    const {output} = await rehabPlanPrompt(input);
+    const {output} = await ai.generate({
+      model: openAI('gpt-4o-mini'),
+      prompt: {
+        text: `You are a physical therapist. Create a detailed rehabilitation plan for a patient based on the following information:
+
+Age: ${input.age}
+Gender: ${input.gender}
+Neck control: ${input.neck}
+Trunk control: ${input.trunk}
+Standing: ${input.standing}
+Walking: ${input.walking}
+Medications: ${input.medications}
+Fractures: ${input.fractures}
+
+Write:
+1. A detailed 12-week plan with exercises and repetitions.
+2. Expected recovery rate.
+3. Precautions.
+4. Review appointments.`
+      },
+      output: {
+        schema: GenerateRehabPlanOutputSchema,
+      }
+    });
     return output!;
   }
 );

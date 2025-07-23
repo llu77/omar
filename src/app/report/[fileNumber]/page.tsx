@@ -42,6 +42,7 @@ export default function ReportPage({
     const generateReports = async (data: PatientDataForAI) => {
       try {
         setLoading(true);
+        setError(null);
         const [considerationResult, rehabPlanResult] = await Promise.all([
           considerPatientInfo(data),
           generateRehabPlan(data),
