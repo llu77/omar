@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Stethoscope, FilePlus2, FileSearch } from "lucide-react";
+import { Stethoscope, FilePlus2, FileSearch, LogIn } from "lucide-react";
 import { Button } from "./ui/button";
 
 export default function Header() {
@@ -25,6 +25,12 @@ export default function Header() {
                 <FileSearch className="ml-2" />
                 استعادة تقرير
               </Link>
+            </Button>
+            <Button asChild>
+                <Link href="/login">
+                    <LogIn className="ml-2"/>
+                    تسجيل الدخول
+                </Link>
             </Button>
           </nav>
         </div>
