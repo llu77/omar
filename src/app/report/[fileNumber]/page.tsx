@@ -33,10 +33,15 @@ export default function ReportPage({
 
   useEffect(() => {
     const fileNumber = params.fileNumber;
-    if (!fileNumber) return;
+    if (!fileNumber) {
+        setLoading(false);
+        setError("رقم الملف غير موجود.");
+        return;
+    };
 
     const generateReports = async (data: PatientDataForAI) => {
       try {
+        setLoading(true);
         const [considerationResult, rehabPlanResult] = await Promise.all([
           considerPatientInfo(data),
           generateRehabPlan(data),
