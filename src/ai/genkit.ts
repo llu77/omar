@@ -25,13 +25,13 @@ export const ai = genkit({
 
 // النماذج المتاحة مع genkitx-openai
 export const AVAILABLE_MODELS = {
-  GPT4_TURBO: 'gpt-4-turbo-preview',
+  GPT4_TURBO: 'gpt-4-turbo',
   GPT4: 'gpt-4',
   GPT35_TURBO: 'gpt-3.5-turbo',
   GPT35_TURBO_16K: 'gpt-3.5-turbo-16k',
 } as const;
 
 // نموذج افتراضي
-export const DEFAULT_MODEL = process.env.DEFAULT_MODEL || AVAILABLE_MODELS.GPT35_TURBO;
+export const DEFAULT_MODEL = process.env.DEFAULT_MODEL || AVAILABLE_MODELS.GPT4_TURBO;
 
 console.log('Using model:', DEFAULT_MODEL);
