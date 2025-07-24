@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,15 @@ interface SavedReport {
   source: 'local' | 'cloud';
 }
 
+const SourceIcon = React.memo(({ source }: { source: 'local' | 'cloud' }) => {
+  if (source === 'cloud') {
+    return <Cloud className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"/>;
+  }
+  return <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً"/>;
+});
+SourceIcon.displayName = 'SourceIcon';
+
+
 export default function RetrievePage() {
   const [fileNumber, setFileNumber] = useState("");
   const [allReports, setAllReports] = useState<SavedReport[]>([]);
@@ -41,9 +50,8 @@ export default function RetrievePage() {
     loadCloudReports(user.uid);
   }, [user, authLoading]);
   
-  // Separate effect for loading local reports to prevent hydration issues
   useEffect(() => {
-      if (!isLoadingReports) { // Only load local after cloud reports are loaded
+      if (!isLoadingReports) {
           loadLocalReports();
       }
   }, [isLoadingReports]);
@@ -101,7 +109,6 @@ export default function RetrievePage() {
       setAllReports(prevReports => {
           const combinedReportsMap = new Map(prevReports.map(r => [r.fileNumber, r]));
           localReportsMap.forEach((value, key) => {
-              // Cloud version takes precedence
               if (!combinedReportsMap.has(key)) {
                   combinedReportsMap.set(key, value);
               }
@@ -197,9 +204,7 @@ export default function RetrievePage() {
                   >
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
-                        {report.source === 'cloud' 
-                          ? <Cloud className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"/>
-                          : <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً"/>}
+                        <SourceIcon source={report.source} />
                         <div>
                           <p className="font-semibold">{report.name}</p>
                           <div className="text-sm text-muted-foreground">

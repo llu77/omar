@@ -31,7 +31,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, useCallback } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthState } from 'react-firebase-hooks/auth';
@@ -41,6 +41,7 @@ import { Logo } from "@/components/logo";
 import { Progress } from "@/components/ui/progress";
 import { AlertCircle, ArrowRight, ArrowLeft, Bone, CircleUser, FileText, HeartPulse, Loader2, PersonStanding, ShieldQuestion, Stethoscope, ToyBrick, Footprints } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { debounce } from 'lodash';
 
 const formSchema = z.object({
   name: z.string().min(2, "الاسم مطلوب (حرفين على الأقل)"),
@@ -80,7 +81,7 @@ const steps = [
   { id: 3, title: "التاريخ الطبي", fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
 ];
 
-const totalRequiredFields = 11; // Statically define the number of required fields for progress calculation
+const totalRequiredFields = 11;
 
 export default function AssessmentPage() {
   const router = useRouter();
@@ -99,7 +100,6 @@ export default function AssessmentPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    // Generate this client-side to ensure uniqueness per session
     if (typeof window !== 'undefined') {
         const year = new Date().getFullYear();
         const randomId = Math.floor(10000 + Math.random() * 90000);
@@ -124,20 +124,29 @@ export default function AssessmentPage() {
       standing: undefined,
       walking: undefined,
     },
-    mode: "onTouched",
+    mode: "onChange",
   });
 
   const watchedFields = useWatch({ control: form.control });
 
-  useEffect(() => {
-      // More robust progress calculation
-      const filledCount = Object.values(watchedFields).filter(value => {
-          return value !== undefined && value !== null && value !== "";
+  const debouncedSetFormProgress = useCallback(
+    debounce((fields) => {
+      const filledCount = Object.values(fields).filter(value => {
+        return value !== undefined && value !== null && String(value).trim() !== "";
       }).length;
       
       const progress = (filledCount / totalRequiredFields) * 100;
       setFormProgress(Math.min(progress, 100));
-  }, [watchedFields]);
+    }, 300), 
+    []
+  );
+
+  useEffect(() => {
+    debouncedSetFormProgress(watchedFields);
+    return () => {
+      debouncedSetFormProgress.cancel();
+    };
+  }, [watchedFields, debouncedSetFormProgress]);
 
 
   const nextStep = async () => {
@@ -168,8 +177,8 @@ export default function AssessmentPage() {
           symptoms: values.symptoms.trim(),
           neck: values.neck,
           trunk: values.trunk,
-          standing: values.standing, // Already 'yes', 'assisted', or 'no'
-          walking: values.walking, // Already 'yes', 'assisted', or 'no'
+          standing: values.standing,
+          walking: values.walking,
           medications: values.medications === "yes" 
             ? `نعم - ${values.medications_details?.trim() || 'لم يتم تحديد التفاصيل'}` 
             : "لا",

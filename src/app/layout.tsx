@@ -9,6 +9,7 @@ const tajawal = Tajawal({
   subsets: ["arabic"],
   weight: ["400", "500", "700", "800"],
   variable: "--font-tajawal",
+  display: 'swap', // Font performance optimization
 });
 
 export const metadata: Metadata = {
