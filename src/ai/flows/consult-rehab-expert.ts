@@ -15,6 +15,11 @@ const MessageSchema = z.object({
   content: z.string(),
 });
 
+// Zod schema for a single message with the added isUser flag for the template
+const TemplateMessageSchema = MessageSchema.extend({
+    isUser: z.boolean(),
+});
+
 // Input schema for the consultation flow
 const ConsultRehabExpertInputSchema = z.object({
   question: z.string().describe('The user\'s current question.'),
@@ -37,7 +42,11 @@ export async function consultRehabExpert(input: ConsultRehabExpertInput): Promis
 // Genkit prompt definition
 const consultPrompt = ai.definePrompt({
   name: 'consultRehabExpertPrompt',
-  input: { schema: ConsultRehabExpertInputSchema },
+  input: { schema: z.object({
+    question: z.string(),
+    // Use the template-specific schema for the prompt's history
+    history: z.array(TemplateMessageSchema),
+  }) },
   output: { schema: ConsultRehabExpertOutputSchema },
   model: 'openai/gpt-3.5-turbo',
   config: {
@@ -53,7 +62,7 @@ const consultPrompt = ai.definePrompt({
 
 سجل المحادثة:
 {{#each history}}
-- {{#if (eq role 'user')}}المستخدم{{else}}أنت{{/if}}: {{content}}
+- {{#if isUser}}المستخدم{{else}}أنت{{/if}}: {{content}}
 {{/each}}
 
 سؤال المستخدم الجديد:
@@ -71,7 +80,17 @@ const consultRehabExpertFlow = ai.defineFlow(
     outputSchema: ConsultRehabExpertOutputSchema,
   },
   async (input) => {
-    const { output } = await consultPrompt(input);
+    // Pre-process history to add the 'isUser' flag for the template
+    const templateHistory = input.history.map(msg => ({
+      ...msg,
+      isUser: msg.role === 'user',
+    }));
+
+    const { output } = await consultPrompt({
+      question: input.question,
+      history: templateHistory,
+    });
+    
     if (!output) {
       throw new Error('فشل الذكاء الاصطناعي في توليد إجابة.');
     }
