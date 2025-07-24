@@ -4,53 +4,53 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 206 70% 95.1%; /* Light-Tinted Blue: #E0F0F8 */
     --foreground: 224 71.4% 4.1%;
-    --card: 0 0% 100%;
+    --card: 206 70% 96.1%; /* Slightly darker than background for contrast */
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 217 91% 60%;
+    --primary: 202 64% 50%; /* Medical Blue: #3391CC */
     --primary-foreground: 210 20% 98%;
-    --secondary: 220 14.3% 95.9%;
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 161 58% 41%; /* Muted Green: #29AB87 */
+    --accent-foreground: 210 20% 98%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 202 64% 50%; /* Medical Blue */
     --radius: 0.75rem;
-    --chart-1: 217 91% 60%;
-    --chart-2: 166 80% 40%;
+    --chart-1: 202 64% 50%; /* primary */
+    --chart-2: 161 58% 41%; /* accent */
     --chart-3: 38 92% 50%;
     --chart-4: 280 85% 60%;
     --chart-5: 0 84% 60%;
   }
 
   .dark {
-    --background: 224 71.4% 4.1%;
-    --foreground: 210 20% 98%;
-    --card: 224 71.4% 4.1%;
-    --card-foreground: 210 20% 98%;
-    --popover: 224 71.4% 4.1%;
-    --popover-foreground: 210 20% 98%;
-    --primary: 217 91% 60%;
+    --background: 222 47% 11%; /* Dark blue-gray */
+    --foreground: 210 40% 98%;
+    --card: 222 47% 12.5%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 202 64% 55%; /* Lighter Medical Blue for dark mode */
     --primary-foreground: 210 20% 98%;
-    --secondary: 215 27.9% 16.9%;
-    --secondary-foreground: 210 20% 98%;
-    --muted: 215 27.9% 16.9%;
-    --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
-    --accent-foreground: 210 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 20% 98%;
-    --border: 215 27.9% 16.9%;
-    --input: 215 27.9% 16.9%;
-    --ring: 217 91% 60%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 161 58% 41%; /* Muted Green */
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 202 64% 55%; /* Lighter Medical Blue */
   }
 }
 
