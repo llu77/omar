@@ -1,12 +1,15 @@
-import { genkit } from 'genkit';
-import { openAI } from 'genkitx-openai';
-import { defineDotprompt } from 'genkit';
+'use server';
+
+import {genkit} from 'genkit';
+import {openAI} from 'genkitx-openai';
 
 // التحقق من مفتاح API
 const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
-  throw new Error("The OPENAI_API_KEY environment variable is required. Please add it to your .env file.");
+  throw new Error(
+    'The OPENAI_API_KEY environment variable is required. Please add it to your .env file.'
+  );
 }
 
 console.log('🚀 Genkit initializing with OpenAI...');
@@ -24,6 +27,5 @@ export const ai = genkit({
   logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
   enableTracking: process.env.NODE_ENV !== 'production',
 });
-
 
 console.log('✅ Genkit initialized successfully.');
