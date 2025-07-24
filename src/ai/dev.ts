@@ -1,6 +1,5 @@
 'use server';
 
-import { ai } from './genkit';
 import { generateEnhancedRehabPlan } from './flows/generate-enhanced-rehab-plan';
 import { consultRehabExpert } from './flows/consult-rehab-expert';
 
@@ -17,10 +16,10 @@ const sampleInput = {
   symptoms: 'آلام في الرقبة والظهر، صعوبة في الجلوس لفترات طويلة',
   age: 35,
   gender: 'ذكر',
-  neck: 'جزئياً',
-  trunk: 'نعم',
-  standing: 'نعم',
-  walking: 'نعم',
+  neck: 'partially',
+  trunk: 'yes',
+  standing: 'yes',
+  walking: 'yes',
   medications: 'نعم - مسكنات الألم (باراسيتامول)',
   fractures: 'لا',
 };

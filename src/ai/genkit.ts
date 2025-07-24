@@ -1,29 +1,41 @@
-import {genkit} from 'genkit';
-import {openAI} from 'genkitx-openai';
+'use server';
+/**
+ * @fileoverview This file initializes and configures the Genkit AI system.
+ *
+ * It sets up the AI instance with the necessary plugins and exports
+ * the core AI functionality to be used throughout the application.
+ *
+ * - `ai`: The main Genkit instance.
+ * - `z`: The Zod schema definition utility.
+ */
 
-// التحقق من مفتاح API
-const apiKey = process.env.OPENAI_API_KEY;
+import {genkit} from '@genkit-ai/ai';
+import {configureGenkit} from '@genkit-ai/core';
+import {googleAI} from '@genkit-ai/googleai';
+import {openAI} from '@genkit-ai/openai';
+import {z} from 'zod';
 
-if (!apiKey) {
-  throw new Error(
-    'The OPENAI_API_KEY environment variable is required. Please add it to your .env file.'
-  );
-}
+// Export Zod for use in other parts of the application
+export {z};
 
-console.log('🚀 Genkit initializing with OpenAI...');
-
-// إعدادات محسنة للأداء
-export const ai = genkit({
+// Configure Genkit with necessary plugins
+configureGenkit({
   plugins: [
-    openAI({
-      apiKey: apiKey,
-      // إعدادات إضافية للأداء
-      timeout: 30000, // 30 ثانية timeout
-      maxRetries: 2, // عدد أقل من المحاولات
-    }),
+    // Initialize Google AI plugin if the API key is available
+    process.env.GOOGLE_API_KEY ? googleAI() : undefined,
+
+    // Initialize OpenAI plugin if the API key is available
+    process.env.OPENAI_API_KEY
+      ? openAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        })
+      : undefined,
   ],
-  logLevel: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
-  enableTracking: process.env.NODE_ENV !== 'production',
+  // Log all errors to the console
+  logLevel: 'error',
+  // Disable tracing and metrics for production performance
+  enableTracingAndMetrics: false,
 });
 
-console.log('✅ Genkit initialized successfully.');
+// Define and export the global AI instance
+export const ai = genkit();

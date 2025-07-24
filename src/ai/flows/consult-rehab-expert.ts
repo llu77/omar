@@ -1,82 +1,97 @@
 'use server';
 
 /**
- * @fileOverview AI flow for a rehabilitation expert consultant.
- * This flow powers the "Consult Me" feature, allowing users to ask
- * rehabilitation-related questions and get scientific answers.
+ * @fileoverview AI flow for rehabilitation expert consultation.
+ * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import {ai, z} from '@/ai/genkit';
+import {openai} from 'genkitx-openai';
 
-// Zod schema for a single message in the chat history
-const MessageSchema = z.object({
+// ==================== Schema Definitions ====================
+
+export const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
-  content: z.string(),
+  content: z.string().min(1),
 });
 
-// Input schema for the consultation flow
-const ConsultRehabExpertInputSchema = z.object({
-  question: z.string().describe("The user's current question."),
-  history: z.array(MessageSchema).describe('The previous conversation history.'),
+export const ConsultRehabExpertInputSchema = z.object({
+  question: z.string().min(1, 'السؤال مطلوب'),
+  history: z.array(MessageSchema).default([]),
 });
+
+export const ConsultRehabExpertOutputSchema = z.object({
+  answer: z.string(),
+});
+
+// ==================== Type Exports ====================
+
+export type Message = z.infer<typeof MessageSchema>;
 export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
-
-// Output schema for the consultation flow
-const ConsultRehabExpertOutputSchema = z.object({
-  answer: z.string().describe("The AI expert's answer to the question."),
-});
 export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
 
+// ==================== Flow Definition ====================
 
-// The main exported function that calls the Genkit flow
-export async function consultRehabExpert(input: ConsultRehabExpertInput): Promise<ConsultRehabExpertOutput> {
-  const result = await consultRehabExpertFlow(input);
-  return result;
-}
-
-const systemPrompt = `أنت "استشاري تأهيل ذكي"، مساعد افتراضي خبير في العلاج الطبيعي والتأهيل. مهمتك هي الإجابة على أسئلة المستخدمين بشكل علمي ودقيق ومبسط.
-
-قواعدك الأساسية:
-1.  **الدقة العلمية:** قدم إجابات تستند إلى مبادئ علمية وطبية في مجال العلاج الطبيعي.
-2.  **الإيجاز والوضوح:** استخدم لغة سهلة ومباشرة.
-3.  **السلامة أولاً:** ابدأ دائمًا إجابتك بتحذير مهم: "تنبيه: هذه المعلومات للاسترشاد فقط ولا تغني عن استشارة الطبيب أو أخصائي العلاج الطبيعي. يجب دائمًا استشارة مختص قبل البدء في أي برنامج علاجي."
-4.  **تحليل المحادثة:** استخدم سجل المحادثة السابق لفهم سياق السؤال الحالي.`;
-
-
-// Genkit flow definition
 const consultRehabExpertFlow = ai.defineFlow(
   {
     name: 'consultRehabExpertFlow',
     inputSchema: ConsultRehabExpertInputSchema,
     outputSchema: ConsultRehabExpertOutputSchema,
   },
-  async (input) => {
-    
-    // Construct the message history for the model using plain objects
-    const messages = [
-        { role: 'system' as const, content: systemPrompt },
-        ...input.history.map(msg => ({ role: msg.role, content: msg.content })),
-        { role: 'user' as const, content: input.question },
-    ];
+  async ({question, history}) => {
+    const systemPrompt = `You are "Wassel AI Rehab Consultant," a virtual assistant expert in physical therapy and rehabilitation.
 
-    const { output } = await ai.generate({
-        model: 'openai/gpt-3.5-turbo',
-        prompt: {
-            messages
-        },
-        config: {
-          temperature: 0.5,
-        },
-        output: {
-            schema: z.object({ answer: z.string() })
-        }
+Your primary rules are:
+1.  **Scientific Accuracy**: Provide answers based on scientific evidence and proven medical practices.
+2.  **Clarity and Simplicity**: Use clear and understandable language for the average patient.
+3.  **Safety First**: Start every answer with "⚠️ Disclaimer: This information is for guidance only and does not replace consultation with a specialized doctor."
+4.  **Contextualization**: Link your answers to the context of the previous conversation if it exists.
+5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
+6.  **Language**: All responses must be in Arabic.`;
+
+    const model = openai('gpt-3.5-turbo');
+
+    const {output} = await ai.generate({
+      model,
+      prompt: systemPrompt,
+      history: [
+        ...history,
+        {role: 'user', content: question},
+      ],
+      config: {
+        temperature: 0.5,
+      },
     });
 
-    if (!output) {
-      throw new Error('فشل الذكاء الاصطناعي في توليد إجابة.');
+    if (!output || !output.text) {
+      throw new Error('Empty response from AI model');
     }
-    
-    return output;
+
+    return {
+      answer: output.text,
+    };
   }
 );
+
+// ==================== Main Export ====================
+
+/**
+ * Consults with the rehabilitation expert AI.
+ * @param input - The consultation input containing the question and history.
+ * @returns A promise with the expert's answer.
+ */
+export async function consultRehabExpert(
+  input: ConsultRehabExpertInput
+): Promise<ConsultRehabExpertOutput> {
+  try {
+    const validatedInput = ConsultRehabExpertInputSchema.parse(input);
+    return await consultRehabExpertFlow(validatedInput);
+  } catch (error) {
+    console.error('[ConsultRehabExpert] Error:', error);
+    // Provide a user-friendly error message
+    return {
+      answer:
+        '⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك. يرجى المحاولة مرة أخرى لاحقاً.',
+    };
+  }
+}
