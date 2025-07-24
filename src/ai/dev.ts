@@ -2,11 +2,13 @@
 
 import { ai } from './genkit';
 import { generateEnhancedRehabPlan } from './flows/generate-enhanced-rehab-plan';
+import { consultRehabExpert } from './flows/consult-rehab-expert';
 
 // تسجيل التدفقات للتطوير
 console.log('🚀 Genkit Development Server Started');
 console.log('📋 Available Flows:');
 console.log('  - generateEnhancedRehabPlan');
+console.log('  - consultRehabExpert');
 
 
 // مثال على البيانات للاختبار
@@ -24,13 +26,21 @@ const sampleInput = {
 };
 
 // دالة اختبار
-export async function testFlow() {
+export async function testFlows() {
   try {
     console.log('🔄 Testing generateEnhancedRehabPlan...');
-    const result = await generateEnhancedRehabPlan(sampleInput);
+    const rehabResult = await generateEnhancedRehabPlan(sampleInput);
     console.log('✅ Rehab Plan Generated Successfully');
-    console.log('✅ Result:', result);
-    return { result };
+    console.log('✅ Result:', rehabResult);
+
+    console.log('🔄 Testing consultRehabExpert...');
+    const consultResult = await consultRehabExpert({
+      question: "ما هي أفضل التمارين لآلام أسفل الظهر؟",
+      history: []
+    });
+    console.log('✅ Consultation successful');
+    console.log('✅ Result:', consultResult);
+
   } catch (error) {
     console.error('❌ Error in test:', error);
     throw error;
@@ -38,4 +48,4 @@ export async function testFlow() {
 }
 
 // تصدير التدفقات
-export { generateEnhancedRehabPlan };
+export { generateEnhancedRehabPlan, consultRehabExpert };

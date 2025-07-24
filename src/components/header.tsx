@@ -20,11 +20,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { FilePlus2, History, Sun, Moon, LogOut, Menu, X, ChevronsRight, User as UserIcon } from "lucide-react";
+import { FilePlus2, History, Sun, Moon, LogOut, Menu, X, ChevronsRight, User as UserIcon, Stethoscope } from "lucide-react";
 
 const UserNavigation = [
   { name: "تقييم جديد", href: "/assessment", icon: <FilePlus2 className="h-4 w-4" /> },
   { name: "تقاريري", href: "/retrieve", icon: <History className="h-4 w-4" /> },
+  { name: "استشرني", href: "/consult", icon: <Stethoscope className="h-4 w-4" /> },
 ];
 
 export default function Header() {
