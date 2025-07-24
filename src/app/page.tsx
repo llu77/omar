@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from '@/hooks/use-auth-provider';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { 
@@ -38,7 +39,7 @@ const features = [
 ];
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
   if (loading) {

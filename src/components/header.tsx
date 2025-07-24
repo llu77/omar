@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { useAuth } from '@/hooks/use-auth-provider';
+import { useAuthState } from 'react-firebase-hooks/auth';
 import { signOut } from 'firebase/auth';
 import { useToast } from "@/hooks/use-toast";
 import { auth } from '@/lib/firebase';
@@ -32,7 +32,7 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
-  const { user, loading } = useAuth();
+  const [user, loading] = useAuthState(auth);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

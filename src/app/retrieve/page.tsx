@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from '@/hooks/use-auth-provider';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
 import { collection, query, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +15,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash } from "lucide-react";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 interface SavedReport {
   fileNumber: string;
@@ -41,14 +41,14 @@ export default function RetrievePage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const [user, loading] = useAuthState(auth);
 
   useEffect(() => {
-    if (authLoading || !user) {
+    if (loading || !user) {
       return;
     }
     loadCloudReports(user.uid);
-  }, [user, authLoading]);
+  }, [user, loading]);
   
   useEffect(() => {
     // Only load local reports after cloud reports are done and on the client side
@@ -137,7 +137,7 @@ export default function RetrievePage() {
     router.push(`/report/${reportFileNumber}`);
   };
 
-  if (authLoading) {
+  if (loading) {
     return (
       <div className="max-w-4xl mx-auto space-y-8">
         <Skeleton className="h-[450px] w-full" />

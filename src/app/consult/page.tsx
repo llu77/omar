@@ -6,14 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/hooks/use-auth-provider';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/logo';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 import { useChat } from 'ai/react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
 
 export default function ConsultPage() {
-  const { user, loading: authLoading } = useAuth();
+  const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
@@ -26,10 +27,10 @@ export default function ConsultPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!loading && !user) {
       router.push('/login');
     }
-  }, [user, authLoading, router]);
+  }, [user, loading, router]);
 
   useEffect(() => {
     // Scroll to the bottom of the chat view

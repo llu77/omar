@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from '@/hooks/use-auth-provider';
-import { db } from '@/lib/firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { db, auth } from '@/lib/firebase';
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 
 import { generateEnhancedRehabPlan } from "@/ai/flows/generate-enhanced-rehab-plan";
@@ -27,7 +27,7 @@ export default function ReportPage() {
   const { fileNumber } = useParams() as { fileNumber: string };
   const router = useRouter();
   const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+  const [user, loading] = useAuthState(auth);
 
   const [pageState, setPageState] = useState<PageState>('loading');
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -36,13 +36,13 @@ export default function ReportPage() {
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (loading) return;
     if (!user) {
       router.push('/login');
       return;
     }
     loadReport();
-  }, [user, authLoading, fileNumber, router]);
+  }, [user, loading, fileNumber, router]);
 
   const loadReport = async () => {
     if (!user) return;

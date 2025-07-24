@@ -4,7 +4,6 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/hooks/use-auth-provider";
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
@@ -40,7 +39,6 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-grow container mx-auto px-4 py-8">
@@ -51,7 +49,6 @@ export default function RootLayout({
               </footer>
             </div>
             <Toaster />
-          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
