@@ -10,42 +10,14 @@
  */
 
 import OpenAI from 'openai';
-import { z } from 'zod';
+import { GenerateEnhancedRehabPlanInput, GenerateEnhancedRehabPlanOutput, GenerateEnhancedRehabPlanInputSchema, GenerateEnhancedRehabPlanOutputSchema } from '@/types';
+
 
 // ==================== OpenAI Client Initialization ====================
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ==================== Schema Definitions ====================
-const GenerateEnhancedRehabPlanInputSchema = z.object({
-  job: z.string().min(1, 'الوظيفة مطلوبة'),
-  symptoms: z.string().min(1, 'الأعراض مطلوبة'),
-  age: z.number().int().min(1).max(120),
-  gender: z.enum(['male', 'female', 'ذكر', 'أنثى']),
-  neck: z.enum(['yes', 'partially', 'no', 'نعم', 'جزئياً', 'لا']),
-  trunk: z.enum(['yes', 'partially', 'no', 'نعم', 'جزئياً', 'لا']),
-  standing: z.enum(['yes', 'assisted', 'no', 'نعم', 'بمساعدة', 'لا']),
-  walking: z.enum(['yes', 'assisted', 'no', 'نعم', 'بمساعدة', 'لا']),
-  medications: z.string(),
-  fractures: z.string(),
-});
-
-const GenerateEnhancedRehabPlanOutputSchema = z.object({
-  initialDiagnosis: z.string().describe('The potential functional diagnosis based on the provided information.'),
-  prognosis: z.string().describe('Expectations for improvement over 12 weeks with estimated percentages.'),
-  rehabPlan: z.string().describe('A detailed 12-week rehabilitation plan including stages, exercises, and goals. Should be formatted as markdown.'),
-  precautions: z.string().describe('Important precautions to consider during the program.'),
-  medicationsInfluence: z.string().describe('The impact of the mentioned medications on the rehabilitation program.'),
-  fracturesInfluence: z.string().describe('Special considerations for fractures, if any, and their impact on the plan.'),
-  reviewAppointments: z.string().describe('The proposed follow-up schedule with details.'),
-});
-
-// ==================== Type Exports ====================
-export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
-export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
-
-// ==================== Main Export ====================
 /**
  * Generates an enhanced rehabilitation plan based on patient data
  * @param input - Patient information and symptoms

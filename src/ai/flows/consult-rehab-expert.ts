@@ -6,32 +6,12 @@
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 import OpenAI from 'openai';
-import { z } from 'zod';
+import { ConsultRehabExpertInput, ConsultRehabExpertInputSchema, ConsultRehabExpertOutput } from '@/types';
 
 // ==================== OpenAI Client Initialization ====================
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-// ==================== Schema Definitions ====================
-export const MessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
-  content: z.string().min(1),
-});
-
-export const ConsultRehabExpertInputSchema = z.object({
-  question: z.string().min(1, 'السؤال مطلوب'),
-  history: z.array(MessageSchema).default([]),
-});
-
-export const ConsultRehabExpertOutputSchema = z.object({
-  answer: z.string(),
-});
-
-// ==================== Type Exports ====================
-export type Message = z.infer<typeof MessageSchema>;
-export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
-export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
 
 // ==================== Main Export ====================
 /**

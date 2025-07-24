@@ -187,9 +187,9 @@ export default function RetrievePage() {
                           : <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً"/>}
                         <div>
                           <p className="font-semibold">{report.name}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground">
                             <Badge variant="outline" className="font-mono">{report.fileNumber}</Badge>
-                          </p>
+                          </div>
                         </div>
                       </div>
                       <p className="text-sm text-muted-foreground">

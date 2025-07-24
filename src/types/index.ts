@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export interface PatientFormValues {
   name: string;
   age: string;
@@ -28,3 +30,52 @@ export interface PatientDataForAI {
   medications: string;
   fractures: string;
 }
+
+// ==================== AI Flow Schemas ====================
+
+// Schemas for consult-rehab-expert flow
+export const MessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1),
+});
+
+export const ConsultRehabExpertInputSchema = z.object({
+  question: z.string().min(1, 'السؤال مطلوب'),
+  history: z.array(MessageSchema).default([]),
+});
+
+export const ConsultRehabExpertOutputSchema = z.object({
+  answer: z.string(),
+});
+
+export type Message = z.infer<typeof MessageSchema>;
+export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
+export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
+
+
+// Schemas for generate-enhanced-rehab-plan flow
+export const GenerateEnhancedRehabPlanInputSchema = z.object({
+  job: z.string().min(1, 'الوظيفة مطلوبة'),
+  symptoms: z.string().min(1, 'الأعراض مطلوبة'),
+  age: z.number().int().min(1).max(120),
+  gender: z.enum(['male', 'female', 'ذكر', 'أنثى']),
+  neck: z.enum(['yes', 'partially', 'no', 'نعم', 'جزئياً', 'لا']),
+  trunk: z.enum(['yes', 'partially', 'no', 'نعم', 'جزئياً', 'لا']),
+  standing: z.enum(['yes', 'assisted', 'no', 'نعم', 'بمساعدة', 'لا']),
+  walking: z.enum(['yes', 'assisted', 'no', 'نعم', 'بمساعدة', 'لا']),
+  medications: z.string(),
+  fractures: z.string(),
+});
+
+export const GenerateEnhancedRehabPlanOutputSchema = z.object({
+  initialDiagnosis: z.string().describe('The potential functional diagnosis based on the provided information.'),
+  prognosis: z.string().describe('Expectations for improvement over 12 weeks with estimated percentages.'),
+  rehabPlan: z.string().describe('A detailed 12-week rehabilitation plan including stages, exercises, and goals. Should be formatted as markdown.'),
+  precautions: z.string().describe('Important precautions to consider during the program.'),
+  medicationsInfluence: z.string().describe('The impact of the mentioned medications on the rehabilitation program.'),
+  fracturesInfluence: z.string().describe('Special considerations for fractures, if any, and their impact on the plan.'),
+  reviewAppointments: z.string().describe('The proposed follow-up schedule with details.'),
+});
+
+export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
+export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
