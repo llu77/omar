@@ -6,7 +6,7 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {openai} from 'genkitx-openai';
+import {googleAI} from '@genkit-ai/googleai';
 import {z} from 'zod';
 
 // ==================== Schema Definitions ====================
@@ -54,7 +54,7 @@ Your primary rules are:
 5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
 6.  **Language**: All responses must be in Arabic.`;
 
-    const model = openai.model('gpt-3.5-turbo');
+    const model = googleAI.model('gemini-pro');
 
     const messages: {role: 'system' | 'user' | 'model'; content: string}[] = [
       {role: 'system', content: systemPrompt},

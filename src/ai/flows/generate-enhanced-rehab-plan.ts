@@ -8,8 +8,9 @@
  * - GenerateEnhancedRehabPlanOutput: The Zod schema for the output.
  */
 
-import {ai, z} from '@/ai/genkit';
-import {openai} from 'genkitx-openai';
+import {ai} from '@/ai/genkit';
+import {googleAI} from '@genkit-ai/googleai';
+import {z} from 'zod';
 
 // ==================== Schema Definitions ====================
 
@@ -110,7 +111,7 @@ const generateRehabPlanFlow = ai.defineFlow(
     outputSchema: GenerateEnhancedRehabPlanOutputSchema,
   },
   async input => {
-    const model = openai.model('gpt-3.5-turbo');
+    const model = googleAI.model('gemini-pro');
 
     const {output} = await rehabPlanPrompt(
       {
