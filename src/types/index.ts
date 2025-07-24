@@ -35,7 +35,7 @@ export interface PatientDataForAI {
 
 // Schemas for consult-rehab-expert flow
 export const MessageSchema = z.object({
-  role: z.enum(['user', 'assistant']),
+  role: z.enum(['user', 'assistant', 'model']),
   content: z.string().min(1),
 });
 

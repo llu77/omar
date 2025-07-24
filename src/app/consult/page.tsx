@@ -12,11 +12,8 @@ import { useRouter } from 'next/navigation';
 import { consultRehabExpert } from '@/ai/flows/consult-rehab-expert';
 import { Logo } from '@/components/logo';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
+import type { Message } from '@/types';
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 export default function ConsultPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -54,15 +51,16 @@ export default function ConsultPage() {
     setIsLoading(true);
 
     try {
-      // The history needs to be of type Message[] which matches the updated schema
-      const history = messages.filter(m => m.role === 'user' || m.role === 'assistant');
+      const historyForApi = messages.map(m => ({
+        role: m.role === 'model' ? 'assistant' : m.role, // Ensure 'assistant' is used for API
+        content: m.content
+      }));
       
       const result = await consultRehabExpert({
         question: input,
-        history: history,
+        history: historyForApi,
       });
 
-      // The role from the AI is 'assistant'
       const modelMessage: Message = { role: 'assistant', content: result.answer };
       setMessages((prev) => [...prev, modelMessage]);
 
@@ -100,7 +98,7 @@ export default function ConsultPage() {
                     message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {message.role === 'assistant' && (
+                  {message.role !== 'user' && (
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20}/></AvatarFallback>
                     </Avatar>
