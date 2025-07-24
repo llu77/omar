@@ -7,7 +7,7 @@ import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
 
 import { generateEnhancedRehabPlan } from "@/ai/flows/generate-enhanced-rehab-plan";
-import type { GenerateEnhancedRehabPlanOutput } from "@/ai/flows/generate-enhanced-rehab-plan";
+import type { GenerateEnhancedRehabPlanOutput } from "@/types";
 import type { PatientDataForAI } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -56,8 +56,12 @@ export default function ReportPage() {
       const reportDoc = await getDoc(reportDocRef);
   
       if (reportDoc.exists()) {
-        const data = reportDoc.data() as ReportData;
-        setReportData(data);
+        const data = reportDoc.data();
+        // Convert Firestore Timestamp to JS Date object
+        if (data.createdAt && data.createdAt instanceof Timestamp) {
+            data.createdAt = data.createdAt.toDate();
+        }
+        setReportData(data as ReportData);
         setIsSaved(true);
         setPageState('displaying');
         toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المحفوظ من السحابة." });
