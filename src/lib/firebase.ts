@@ -4,14 +4,14 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getAnalytics, Analytics, isSupported } from "firebase/analytics";
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration is read from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyCQgNa2YXS-5Wp1wAITyNg8f-FEhfm984Q",
-  authDomain: "wassel-telerehab.firebaseapp.com",
-  projectId: "wassel-telerehab",
-  storageBucket: "wassel-telerehab.firebasestorage.app",
-  messagingSenderId: "279555875363",
-  appId: "1:279555875363:web:f643d98561fddc495bc796"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 // Initialize Firebase using a singleton pattern
