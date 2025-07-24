@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -5,9 +6,7 @@
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 
-import {defineFlow, generate} from '@/ai/genkit';
-import {googleAI} from '@genkit-ai/googleai';
-import {z} from 'zod';
+import {ai, z} from '@/ai/genkit';
 
 // ==================== Schema Definitions ====================
 
@@ -37,7 +36,7 @@ export type ConsultRehabExpertOutput = z.infer<
 
 // ==================== Flow Definition ====================
 
-const consultRehabExpertFlow = defineFlow(
+const consultRehabExpertFlow = ai.defineFlow(
   {
     name: 'consultRehabExpertFlow',
     inputSchema: ConsultRehabExpertInputSchema,
@@ -54,17 +53,18 @@ Your primary rules are:
 5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
 6.  **Language**: All responses must be in Arabic.`;
 
-    const model = googleAI.model('gemini-pro');
+    const model = ai.model('gemini-pro');
 
-    const messages: {role: 'system' | 'user' | 'model'; content: {text: string}[]}[] = [
-      {role: 'system', content: [{text: systemPrompt}]},
-    ];
+    const messages: {
+      role: 'system' | 'user' | 'model';
+      content: {text: string}[];
+    }[] = [{role: 'system', content: [{text: systemPrompt}]}];
     history.forEach(msg => {
       messages.push({role: msg.role, content: [{text: msg.content}]});
     });
     messages.push({role: 'user', content: [{text: question}]});
 
-    const response = await generate({
+    const response = await ai.generate({
       model,
       prompt: {
         messages: messages,
@@ -74,7 +74,7 @@ Your primary rules are:
       },
     });
 
-    const outputText = response.text();
+    const outputText = response.text;
     if (!outputText) {
       throw new Error('Empty response from AI model');
     }

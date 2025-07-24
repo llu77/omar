@@ -1,16 +1,16 @@
+
+'use server';
 /**
  * @fileoverview This file initializes and a default Genkit configuration.
  */
-
-import {defineFlow, generate} from '@genkit-ai/ai';
-import {configureGenkit} from '@genkit-ai/core';
+import {genkit, defineFlow, generate} from '@genkit-ai/ai';
 import {googleAI} from '@genkit-ai/googleai';
 import {z} from 'zod';
 
-export {z, defineFlow, generate};
-
-configureGenkit({
+export const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
+
+export {z, defineFlow, generate};

@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Central export point for AI rehabilitation services
  * Provides clean imports for all AI-powered functionality
@@ -7,6 +8,7 @@
 
 export {
     // Genkit utilities
+    ai,
     z,
     defineFlow,
     generate,

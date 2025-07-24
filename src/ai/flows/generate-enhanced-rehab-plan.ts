@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -8,9 +9,7 @@
  * - GenerateEnhancedRehabPlanOutput: The Zod schema for the output.
  */
 
-import {defineFlow, generate} from '@/ai/genkit';
-import {googleAI} from '@genkit-ai/googleai';
-import {z} from 'zod';
+import {ai, z} from '@/ai/genkit';
 
 // ==================== Schema Definitions ====================
 
@@ -72,7 +71,11 @@ export type GenerateEnhancedRehabPlanOutput = z.infer<
 
 // ==================== Prompt Definition ====================
 
-const rehabPlanPrompt = `You are an expert physical therapist. Create a detailed and scientific rehabilitation plan.
+const rehabPlanPrompt = ai.definePrompt({
+  name: 'rehabPlanPrompt',
+  input: {schema: GenerateEnhancedRehabPlanInputSchema},
+  output: {schema: GenerateEnhancedRehabPlanOutputSchema},
+  prompt: `You are an expert physical therapist. Create a detailed and scientific rehabilitation plan.
 
 Patient Information:
 - Age: {{age}} years
@@ -92,37 +95,22 @@ Medical Information:
 
 Your response must be in JSON format, strictly following the output schema.
 The rehabPlan should be detailed, structured into a 12-week program, and formatted using Markdown for clarity.
-All text must be in Arabic.`;
+All text must be in Arabic.`,
+});
 
 // ==================== Flow Definition ====================
 
-const generateRehabPlanFlow = defineFlow(
+const generateRehabPlanFlow = ai.defineFlow(
   {
     name: 'generateRehabPlanFlow',
     inputSchema: GenerateEnhancedRehabPlanInputSchema,
     outputSchema: GenerateEnhancedRehabPlanOutputSchema,
   },
   async input => {
-    const model = googleAI.model('gemini-pro');
-
-    const response = await generate({
-      model: model,
-      prompt: rehabPlanPrompt,
-      input: input,
-      config: {
-        temperature: 0.7,
-      },
-      output: {
-        format: 'json',
-        schema: GenerateEnhancedRehabPlanOutputSchema,
-      }
-    });
-
-    const output = response.output();
+    const {output} = await rehabPlanPrompt(input);
     if (!output) {
       throw new Error('Failed to generate a rehabilitation plan.');
     }
-
     return output;
   }
 );
