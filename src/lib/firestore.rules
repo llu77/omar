@@ -10,10 +10,15 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function getUserRole() {
+    // محسّن: التعامل مع حالة عدم وجود user document
+    function getUserData() {
       return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : {'role': 'pending'};
+    }
+    
+    function getUserRole() {
+      return getUserData().role;
     }
     
     function isTherapist() {
@@ -28,14 +33,13 @@ service cloud.firestore {
       return getUserRole() == 'patient';
     }
     
-    function canAccessPatientData(patientId) {
-      return isAdmin() || isTherapist() || 
-        (isPatient() && request.auth.uid == patientId);
+    function isPending() {
+      return getUserRole() == 'pending';
     }
     
     // Users collection
     match /users/{userId} {
-      // السماح للمستخدم بإنشاء document خاص به عند التسجيل
+      // السماح بإنشاء document عند التسجيل
       allow create: if isAuthenticated() && request.auth.uid == userId;
       allow read: if isOwner(userId) || isTherapist() || isAdmin();
       allow update: if isOwner(userId) || isAdmin();
@@ -56,24 +60,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
+    // Reports collection - محسّن
+    match /reports/{reportId} {
+      // السماح بالقراءة مع معالجة أفضل للأخطاء
+      allow read: if isAuthenticated() && (
+        isTherapist() || 
+        isAdmin() || 
+        (isPatient() && resource != null && resource.data.patientId == request.auth.uid) ||
+        // السماح بقراءة التقارير العامة إذا وجدت
+        (resource != null && resource.data.isPublic == true)
+      );
+      
+      // السماح بالإنشاء فقط للمعالجين والمدراء
+      allow create: if (isTherapist() || isAdmin()) && 
+        request.resource.data.keys().hasAll(['patientId', 'therapistId', 'createdAt']);
+        
+      allow update: if (isTherapist() || isAdmin()) && 
+        resource != null &&
+        (resource.data.therapistId == request.auth.uid || isAdmin());
+        
+      allow delete: if isAdmin();
+    }
+    
     // Assessments collection
     match /assessments/{assessmentId} {
       allow read: if isAuthenticated() && (
         isTherapist() || 
         isAdmin() || 
-        (isPatient() && resource.data.patientId == request.auth.uid)
-      );
-      allow create: if isTherapist() || isAdmin();
-      allow update: if isTherapist() || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Reports collection
-    match /reports/{reportId} {
-      allow read: if isAuthenticated() && (
-        isTherapist() || 
-        isAdmin() || 
-        (isPatient() && resource.data.patientId == request.auth.uid)
+        (isPatient() && resource != null && resource.data.patientId == request.auth.uid)
       );
       allow create: if isTherapist() || isAdmin();
       allow update: if isTherapist() || isAdmin();
@@ -85,11 +99,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isTherapist() || 
         isAdmin() || 
-        (isPatient() && resource.data.patientId == request.auth.uid)
+        (isPatient() && resource != null && resource.data.patientId == request.auth.uid)
       );
       allow create: if isTherapist() || isAdmin();
       allow update: if isTherapist() || isAdmin() ||
-        (isPatient() && resource.data.patientId == request.auth.uid && 
+        (isPatient() && resource != null && resource.data.patientId == request.auth.uid && 
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['patientNotes', 'completedAt']));
       allow delete: if isAdmin();
     }
@@ -104,11 +118,12 @@ service cloud.firestore {
     
     // Notifications collection
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && 
+        resource != null && resource.data.userId == request.auth.uid;
       allow create: if isTherapist() || isAdmin();
-      allow update: if isOwner(resource.data.userId) && 
+      allow update: if resource != null && isOwner(resource.data.userId) && 
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
-      allow delete: if isOwner(resource.data.userId) || isAdmin();
+      allow delete: if resource != null && (isOwner(resource.data.userId) || isAdmin());
     }
     
     // Settings collection
@@ -117,8 +132,8 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Temporary collection for initial setup
-    match /temp/{document=**} {
+    // Debug collection - للمساعدة في تشخيص المشاكل
+    match /debug/{document=**} {
       allow read, write: if isAuthenticated();
     }
   }

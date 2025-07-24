@@ -48,12 +48,12 @@ export default function ReportPage() {
     setPageState('loading');
     setErrorMessage(null);
     setIsSaved(false);
-
+  
     try {
       // 1. Try to fetch from Firestore first
       const reportDocRef = doc(db, "reports", fileNumber);
       const reportDoc = await getDoc(reportDocRef);
-
+  
       if (reportDoc.exists()) {
         const data = reportDoc.data() as ReportData;
         setReportData(data);
@@ -66,8 +66,9 @@ export default function ReportPage() {
       // 2. If not in Firestore, check localStorage for patient data
       const localDataString = localStorage.getItem(`report-${fileNumber}`);
       if (!localDataString) {
-        throw new Error("لم يتم العثور على بيانات التقييم. يرجى البدء من جديد.");
+        throw new Error("لم يتم العثور على بيانات التقييم لهذا الملف. يرجى البدء من جديد.");
       }
+      
       const patientData: PatientDataForAI = JSON.parse(localDataString);
       
       // 3. Generate the report using AI
@@ -84,21 +85,23 @@ export default function ReportPage() {
         medications: patientData.medications,
         fractures: patientData.fractures,
       };
-
+  
       const aiOutput = await generateEnhancedRehabPlan(aiInput);
       
       setReportData({ ...patientData, ...aiOutput });
       setPageState('displaying');
-
+  
     } catch (error: any) {
       console.error("Error loading or generating report:", error);
       let message = "حدث خطأ غير متوقع.";
        if (error.code === 'permission-denied' || error.message.includes('permission')) {
-          message = "ليس لديك الصلاحية لعرض هذا التقرير. تأكد من أنك تستخدم الحساب الصحيح وأن قواعد الأمان في Firebase مهيأة بشكل صحيح.";
+          message = "ليس لديك الصلاحية لعرض هذا التقرير أو حدث خطأ في الصلاحيات. تأكد من أن قواعد الأمان في Firebase صحيحة.";
       } else if (error.message.includes("not found")) {
         message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
       } else if (error.message.includes("AI")) {
         message = `فشل توليد التقرير بالذكاء الاصطناعي: ${error.message}`;
+      } else {
+        message = error.message;
       }
       setErrorMessage(message);
       setPageState('error');
@@ -301,5 +304,3 @@ export default function ReportPage() {
 
   return <div className="max-w-5xl mx-auto">{renderContent()}</div>;
 }
-
-    
