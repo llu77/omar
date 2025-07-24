@@ -38,32 +38,32 @@ export {
   
   /**
    * Example: Generate a rehabilitation plan
-   * ```typescript
+   * \`\`\`typescript
    * import { generateEnhancedRehabPlan } from '@/ai';
    * 
    * const plan = await generateEnhancedRehabPlan({
    *   job: "مهندس",
    *   symptoms: "آلام أسفل الظهر",
    *   age: 35,
-   *   gender: "ذكر",
-   *   neck: "نعم",
-   *   trunk: "جزئياً",
-   *   standing: "نعم",
-   *   walking: "نعم",
+   *   gender: "male",
+   *   neck: "yes",
+   *   trunk: "partially",
+   *   standing: "yes",
+   *   walking: "yes",
    *   medications: "لا",
    *   fractures: "لا"
    * });
-   * ```
+   * \`\`\`
    */
   
   /**
    * Example: Consult with rehabilitation expert
-   * ```typescript
+   * \`\`\`typescript
    * import { consultRehabExpert } from '@/ai';
    * 
    * const response = await consultRehabExpert({
    *   question: "ما هي أفضل تمارين لتقوية عضلات الظهر؟",
    *   history: []
    * });
-   * ```
+   * \`\`\`
    */

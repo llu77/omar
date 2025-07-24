@@ -6,7 +6,7 @@
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 
-import {ai, z} from '@/ai/genkit';
+import {ai, z, defineFlow, generate} from '@/ai/genkit';
 
 // ==================== Schema Definitions ====================
 
@@ -36,7 +36,7 @@ export type ConsultRehabExpertOutput = z.infer<
 
 // ==================== Flow Definition ====================
 
-const consultRehabExpertFlow = ai.defineFlow(
+const consultRehabExpertFlow = defineFlow(
   {
     name: 'consultRehabExpertFlow',
     inputSchema: ConsultRehabExpertInputSchema,
@@ -64,7 +64,7 @@ Your primary rules are:
     });
     messages.push({role: 'user', content: [{text: question}]});
 
-    const response = await ai.generate({
+    const response = await generate({
       model,
       prompt: {
         messages: messages,

@@ -9,7 +9,7 @@
  * - GenerateEnhancedRehabPlanOutput: The Zod schema for the output.
  */
 
-import {ai, z} from '@/ai/genkit';
+import {ai, z, defineFlow} from '@/ai/genkit';
 
 // ==================== Schema Definitions ====================
 
@@ -100,7 +100,7 @@ All text must be in Arabic.`,
 
 // ==================== Flow Definition ====================
 
-const generateRehabPlanFlow = ai.defineFlow(
+const generateRehabPlanFlow = defineFlow(
   {
     name: 'generateRehabPlanFlow',
     inputSchema: GenerateEnhancedRehabPlanInputSchema,
