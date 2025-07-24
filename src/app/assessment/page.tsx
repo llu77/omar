@@ -39,7 +39,7 @@ import { auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/logo";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, ArrowRight, ArrowLeft, Bone, CircleUser, FileText, HeartPulse, Loader2, PersonStanding, ShieldQuestion, Stethoscope, ToyBrick, Walk } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowLeft, Bone, CircleUser, FileText, HeartPulse, Loader2, PersonStanding, ShieldQuestion, Stethoscope, ToyBrick, Footprints } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const formSchema = z.object({
@@ -129,22 +129,26 @@ export default function AssessmentPage() {
 
   useEffect(() => {
     const totalFields = Object.keys(formSchema.shape).length - 2; // excluding optional detail fields
-    const filledFields = Object.values(watchedFields).filter(value => value !== "" && value !== undefined && value !== null).length;
     
-    // Adjust for conditional fields
-    let filledCount = 0;
-    for (const key in formSchema.shape) {
-      const typedKey = key as keyof FormValues;
-      if (typedKey === 'medications_details' || typedKey === 'fractures_details') continue;
-      
-      const value = watchedFields[typedKey];
-      if (value !== undefined && value !== "") {
-        filledCount++;
-      }
-    }
+    // Safer progress calculation
+    const filledCount = Object.keys(watchedFields).reduce((count, key) => {
+        const typedKey = key as keyof FormValues;
+        const value = watchedFields[typedKey];
+
+        // Skip optional detail fields for this calculation logic
+        if (typedKey === 'medications_details' || typedKey === 'fractures_details') {
+            return count;
+        }
+
+        if (value !== undefined && value !== null && value !== "") {
+            return count + 1;
+        }
+        return count;
+    }, 0);
+
     const progress = (filledCount / totalFields) * 100;
     setFormProgress(Math.min(progress, 100));
-  }, [watchedFields, form]);
+}, [watchedFields]);
 
 
   const nextStep = async () => {
@@ -400,7 +404,7 @@ export default function AssessmentPage() {
                     {renderRadioGroup("standing", radioOptions.assistance)}
                   </FormItem>
                   <FormItem>
-                    <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Walk className="w-5 h-5"/>القدرة على المشي <span className="text-red-500">*</span></FormLabel>
+                    <FormLabel className="flex items-center gap-2 text-lg font-semibold"><Footprints className="w-5 h-5"/>القدرة على المشي <span className="text-red-500">*</span></FormLabel>
                     {renderRadioGroup("walking", radioOptions.assistance)}
                   </FormItem>
               </CardContent>
