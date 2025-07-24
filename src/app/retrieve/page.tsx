@@ -35,42 +35,23 @@ export default function RetrievePage() {
   const [user, authLoading] = useAuthState(auth);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.push('/login');
+    if (authLoading || !user) {
       return;
     }
-    loadAllReports(user.uid);
-  }, [user, authLoading, router]);
+    loadCloudReports(user.uid);
+  }, [user, authLoading]);
+  
+  // Separate effect for loading local reports to prevent hydration issues
+  useEffect(() => {
+      if (!isLoadingReports) { // Only load local after cloud reports are loaded
+          loadLocalReports();
+      }
+  }, [isLoadingReports]);
 
-  const loadAllReports = async (userId: string) => {
+  const loadCloudReports = async (userId: string) => {
     setIsLoadingReports(true);
     setError(null);
-    const reportsMap = new Map<string, SavedReport>();
-
-    // 1. Load from localStorage
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('report-')) {
-          const data = JSON.parse(localStorage.getItem(key) || '{}');
-          if (data.fileNumber && data.name) {
-             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
-            reportsMap.set(data.fileNumber, {
-              fileNumber: data.fileNumber,
-              name: data.name,
-              createdAt: createdAt,
-              source: 'local',
-            });
-          }
-        }
-      }
-    } catch (e) { 
-      console.error('Error parsing local reports:', e);
-      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
-    }
-
-    // 2. Load from Firebase and merge/overwrite
+    const cloudReports: SavedReport[] = [];
     try {
       const reportsCollectionRef = collection(db, 'users', userId, 'reports');
       const q = query(reportsCollectionRef, orderBy('createdAt', 'desc'));
@@ -78,21 +59,55 @@ export default function RetrievePage() {
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
-        reportsMap.set(doc.id, {
+        cloudReports.push({
           fileNumber: doc.id,
-          name: data.name, // patient name is stored in the report document
+          name: data.name,
           createdAt: createdAt,
           source: 'cloud',
         });
       });
+      setAllReports(cloudReports);
     } catch (firebaseError: any) {
       console.error('Error loading cloud reports:', firebaseError);
       setError("فشل تحميل التقارير المحفوظة في السحابة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
+    } finally {
+      setIsLoadingReports(false);
     }
-    
-    const sortedReports = Array.from(reportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    setAllReports(sortedReports);
-    setIsLoadingReports(false);
+  };
+
+  const loadLocalReports = () => {
+      const localReportsMap = new Map<string, SavedReport>();
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('report-')) {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            if (data.fileNumber && data.name) {
+               const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
+              localReportsMap.set(data.fileNumber, {
+                fileNumber: data.fileNumber,
+                name: data.name,
+                createdAt: createdAt,
+                source: 'local',
+              });
+            }
+          }
+        }
+      } catch (e) { 
+        console.error('Error parsing local reports:', e);
+        toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
+      }
+
+      setAllReports(prevReports => {
+          const combinedReportsMap = new Map(prevReports.map(r => [r.fileNumber, r]));
+          localReportsMap.forEach((value, key) => {
+              // Cloud version takes precedence
+              if (!combinedReportsMap.has(key)) {
+                  combinedReportsMap.set(key, value);
+              }
+          });
+          return Array.from(combinedReportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      });
   };
 
   const handleRetrieve = (e: React.FormEvent) => {
@@ -111,7 +126,7 @@ export default function RetrievePage() {
     router.push(`/report/${reportFileNumber}`);
   };
 
-  if (authLoading) {
+  if (authLoading || (!user && !authLoading)) {
     return (
       <div className="max-w-4xl mx-auto space-y-8">
         <Skeleton className="h-[450px] w-full" />
@@ -192,9 +207,9 @@ export default function RetrievePage() {
                           </div>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground">
                         {formatDistanceToNow(report.createdAt, { addSuffix: true, locale: arSA })}
-                      </p>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
