@@ -3,16 +3,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Users can only read and update their own user document
+    // Users can only read/update their own profile.
+    // They can create their own 'reports' subcollection.
     match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid == userId;
-    }
+      allow read, update: if request.auth.uid == userId;
 
-    // Reports can only be read/updated by the user who owns them.
+      // Reports are now stored in a subcollection under the user's document.
+      // This is a more secure and robust pattern.
+      match /reports/{reportId} {
+        allow read, update, delete: if request.auth.uid == userId;
+        allow create: if request.auth.uid == userId;
+      }
+    }
+    
+    // The global 'reports' collection is no longer used.
+    // This rule is left here to explicitly deny access if old code tries to use it.
     match /reports/{reportId} {
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, write: if false;
     }
   }
 }

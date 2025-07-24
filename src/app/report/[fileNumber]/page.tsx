@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
+import { AlertCircle, Check, Loader2, Printer, Save, UploadCloud } from "lucide-react";
 
 type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput;
 
@@ -50,8 +51,8 @@ export default function ReportPage() {
     setIsSaved(false);
   
     try {
-      // 1. Try to fetch from Firestore first
-      const reportDocRef = doc(db, "reports", fileNumber);
+      // 1. Try to fetch from Firestore first (from the new subcollection path)
+      const reportDocRef = doc(db, "users", user.uid, "reports", fileNumber);
       const reportDoc = await getDoc(reportDocRef);
   
       if (reportDoc.exists()) {
@@ -94,11 +95,11 @@ export default function ReportPage() {
     } catch (error: any) {
       console.error("Error loading or generating report:", error);
       let message = "حدث خطأ غير متوقع.";
-       if (error.code === 'permission-denied' || error.message.includes('permission')) {
+       if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
           message = "ليس لديك الصلاحية لعرض هذا التقرير أو حدث خطأ في الصلاحيات. تأكد من أن قواعد الأمان في Firebase صحيحة.";
-      } else if (error.message.includes("not found")) {
+      } else if (error.message && error.message.includes("not found")) {
         message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
-      } else if (error.message.includes("AI")) {
+      } else if (error.message && error.message.includes("AI")) {
         message = `فشل توليد التقرير بالذكاء الاصطناعي: ${error.message}`;
       } else {
         message = error.message;
@@ -116,10 +117,12 @@ export default function ReportPage() {
 
     startSavingTransition(async () => {
       try {
-        const reportDocRef = doc(db, "reports", reportData.fileNumber);
-        const dataToSave = {
+        // Use the new subcollection path for saving
+        const reportDocRef = doc(db, "users", user.uid, "reports", reportData.fileNumber);
+        
+        // Remove userId as it's redundant now
+        const { ...dataToSave } = {
           ...reportData,
-          userId: user.uid,
           createdAt: Timestamp.now(),
         };
 
@@ -162,7 +165,7 @@ export default function ReportPage() {
       case 'error':
         return (
           <Alert variant="destructive">
-            <div className="h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg></div>
+            <AlertCircle className="h-4 w-4" />
             <AlertTitle>خطأ فادح</AlertTitle>
             <AlertDescription>
               {errorMessage}
@@ -182,24 +185,24 @@ export default function ReportPage() {
               </h1>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => window.print()}>
-                   <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg></div>
+                   <Printer className="ml-2 h-4 w-4"/>
                   طباعة / حفظ PDF
                 </Button>
                  {isSaved ? (
                   <Button disabled variant="secondary">
-                     <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                     <Check className="ml-2 h-4 w-4"/>
                     تم الحفظ بنجاح
                   </Button>
                 ) : (
                   <Button onClick={handleSaveToCloud} disabled={isSaving}>
                      {isSaving ? (
                       <>
-                        <div className="ml-2 h-4 w-4 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>
+                        <Loader2 className="ml-2 h-4 w-4 animate-spin"/>
                         جاري الحفظ...
                       </>
                     ) : (
                       <>
-                        <div className="ml-2 h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+                        <UploadCloud className="ml-2 h-4 w-4"/>
                         الحفظ في السحابة
                       </>
                     )}

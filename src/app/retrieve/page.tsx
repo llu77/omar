@@ -10,11 +10,12 @@ import { Separator } from "@/components/ui/separator";
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
-import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash } from "lucide-react";
 
 interface SavedReport {
   fileNumber: string;
@@ -71,13 +72,14 @@ export default function RetrievePage() {
 
     // 2. Load from Firebase and merge/overwrite
     try {
-      const q = query(collection(db, 'reports'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+      const reportsCollectionRef = collection(db, 'users', userId, 'reports');
+      const q = query(reportsCollectionRef, orderBy('createdAt', 'desc'));
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
-        reportsMap.set(data.fileNumber, {
-          fileNumber: data.fileNumber,
+        reportsMap.set(doc.id, {
+          fileNumber: doc.id,
           name: data.name, // patient name is stored in the report document
           createdAt: createdAt,
           source: 'cloud',
@@ -122,7 +124,7 @@ export default function RetrievePage() {
       <Card className="shadow-lg bg-card/80 backdrop-blur-sm border-primary/10">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center gap-3">
-            <div className="w-8 h-8"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
+            <FileSearch className="w-8 h-8"/>
             استعادة التقارير الطبية
           </CardTitle>
           <CardDescription className="text-lg">
@@ -146,7 +148,7 @@ export default function RetrievePage() {
                 disabled={isSearching}
               />
               <Button type="submit" size="lg" disabled={isSearching}>
-                {isSearching ? <div className="h-5 w-5 animate-spin"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div> : <div className="w-5 h-5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>}
+                {isSearching ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="w-5 h-5"/>}
               </Button>
             </div>
           </form>
@@ -157,7 +159,7 @@ export default function RetrievePage() {
             <h3 className="text-lg font-semibold mb-4">التقارير الأخيرة</h3>
             {error && (
               <Alert variant="destructive" className="mb-4">
-                <div className="h-4 w-4"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg></div>
+                <ServerCrash className="h-4 w-4"/>
                 <AlertTitle>خطأ في الاتصال</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
@@ -181,8 +183,8 @@ export default function RetrievePage() {
                     <CardContent className="flex items-center justify-between p-4">
                       <div className="flex items-center gap-4">
                         {report.source === 'cloud' 
-                          ? <div className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg></div> 
-                          : <div className="h-5 w-5 text-green-500" title="محفوظ محلياً"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg></div>}
+                          ? <Cloud className="h-5 w-5 text-blue-500" title="محفوظ في السحابة"/>
+                          : <Database className="h-5 w-5 text-green-500" title="محفوظ محلياً"/>}
                         <div>
                           <p className="font-semibold">{report.name}</p>
                           <p className="text-sm text-muted-foreground">
