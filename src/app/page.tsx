@@ -60,7 +60,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
+    <>
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20 sm:py-32 px-4">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 -z-10" />
@@ -183,6 +183,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-    </div>
+    </>
   );
 }
