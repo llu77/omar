@@ -34,8 +34,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, useCallback } from "react";
 import type { PatientDataForAI } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/hooks/use-auth-provider';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/logo";
 import { Progress } from "@/components/ui/progress";
@@ -88,7 +87,7 @@ export default function AssessmentPage() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [fileNumber, setFileNumber] = useState("");
-  const [user, loading] = useAuthState(auth);
+  const { user, loading } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [formProgress, setFormProgress] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);

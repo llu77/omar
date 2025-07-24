@@ -4,12 +4,13 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/hooks/use-auth-provider";
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
   weight: ["400", "500", "700", "800"],
   variable: "--font-tajawal",
-  display: 'swap', // Font performance optimization
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -39,16 +40,18 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex flex-col min-h-screen">
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-              <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
-            </footer>
-          </div>
-          <Toaster />
+          <AuthProvider>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-grow container mx-auto px-4 py-8">
+                {children}
+              </main>
+              <footer className="border-t py-6 text-center text-sm text-muted-foreground">
+                <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
+              </footer>
+            </div>
+            <Toaster />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

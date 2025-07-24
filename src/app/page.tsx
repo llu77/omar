@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from '@/hooks/use-auth-provider';
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { 
@@ -39,16 +38,8 @@ const features = [
 ];
 
 export default function Home() {
-  const [user, loading] = useAuthState(auth);
+  const { user, loading } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    // This logic can be adjusted based on desired behavior for logged-in users.
-    // For now, we allow logged-in users to see the homepage.
-    // if (!loading && user) {
-    //   router.push('/assessment');
-    // }
-  }, [user, loading, router]);
 
   if (loading) {
     return (

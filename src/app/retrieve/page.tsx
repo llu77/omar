@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from '@/lib/firebase';
+import { useAuth } from '@/hooks/use-auth-provider';
+import { db } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
 import { collection, query, getDocs, Timestamp, orderBy } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export default function RetrievePage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const [user, authLoading] = useAuthState(auth);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (authLoading || !user) {
@@ -51,9 +51,10 @@ export default function RetrievePage() {
   }, [user, authLoading]);
   
   useEffect(() => {
-      if (!isLoadingReports) {
-          loadLocalReports();
-      }
+    // Only load local reports after cloud reports are done and on the client side
+    if (!isLoadingReports) {
+      loadLocalReports();
+    }
   }, [isLoadingReports]);
 
   const loadCloudReports = async (userId: string) => {
@@ -84,38 +85,41 @@ export default function RetrievePage() {
   };
 
   const loadLocalReports = () => {
-      const localReportsMap = new Map<string, SavedReport>();
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.startsWith('report-')) {
-            const data = JSON.parse(localStorage.getItem(key) || '{}');
-            if (data.fileNumber && data.name) {
-               const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
-              localReportsMap.set(data.fileNumber, {
-                fileNumber: data.fileNumber,
-                name: data.name,
-                createdAt: createdAt,
-                source: 'local',
-              });
-            }
+    if (typeof window === 'undefined') return; // Ensure this runs only on the client
+
+    const localReportsMap = new Map<string, SavedReport>();
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('report-')) {
+          const data = JSON.parse(localStorage.getItem(key) || '{}');
+          if (data.fileNumber && data.name) {
+             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
+            localReportsMap.set(data.fileNumber, {
+              fileNumber: data.fileNumber,
+              name: data.name,
+              createdAt: createdAt,
+              source: 'local',
+            });
           }
         }
-      } catch (e) { 
-        console.error('Error parsing local reports:', e);
-        toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
       }
+    } catch (e) { 
+      console.error('Error parsing local reports:', e);
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
+    }
 
-      setAllReports(prevReports => {
-          const combinedReportsMap = new Map(prevReports.map(r => [r.fileNumber, r]));
-          localReportsMap.forEach((value, key) => {
-              if (!combinedReportsMap.has(key)) {
-                  combinedReportsMap.set(key, value);
-              }
-          });
-          return Array.from(combinedReportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      });
+    setAllReports(prevReports => {
+        const combinedReportsMap = new Map(prevReports.map(r => [r.fileNumber, r]));
+        localReportsMap.forEach((value, key) => {
+            if (!combinedReportsMap.has(key)) {
+                combinedReportsMap.set(key, value);
+            }
+        });
+        return Array.from(combinedReportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    });
   };
+
 
   const handleRetrieve = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +137,7 @@ export default function RetrievePage() {
     router.push(`/report/${reportFileNumber}`);
   };
 
-  if (authLoading || (!user && !authLoading)) {
+  if (authLoading) {
     return (
       <div className="max-w-4xl mx-auto space-y-8">
         <Skeleton className="h-[450px] w-full" />
@@ -191,9 +195,9 @@ export default function RetrievePage() {
                 {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
               </div>
             ) : allReports.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
+              <div className="text-center text-muted-foreground py-8">
                 لا توجد تقارير محفوظة بعد.
-              </p>
+              </div>
             ) : (
               <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
                 {allReports.map((report) => (

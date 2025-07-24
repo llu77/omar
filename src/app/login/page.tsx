@@ -43,7 +43,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -67,7 +66,6 @@ export default function LoginPage() {
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
-    setIsLoggingIn(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       
@@ -114,7 +112,6 @@ export default function LoginPage() {
       });
     } finally {
       setLoading(false);
-      setIsLoggingIn(false);
     }
   };
 
@@ -217,7 +214,7 @@ export default function LoginPage() {
                           type="email"
                           placeholder="doctor@example.com"
                           autoComplete="email"
-                          disabled={loading || isLoggingIn}
+                          disabled={loading}
                           dir="ltr"
                           className="pl-10"
                           {...field}
@@ -260,7 +257,7 @@ export default function LoginPage() {
                           type={showPassword ? "text" : "password"}
                           placeholder="أدخل كلمة المرور"
                           autoComplete="current-password"
-                          disabled={loading || isLoggingIn}
+                          disabled={loading}
                           dir="ltr"
                           className="pl-10"
                           {...field}
@@ -309,9 +306,9 @@ export default function LoginPage() {
                 type="submit" 
                 className="w-full" 
                 size="lg" 
-                disabled={loading || isLoggingIn}
+                disabled={loading}
               >
-                {isLoggingIn ? (
+                {loading ? (
                   <>
                     <Loader2 className="ml-2 h-5 w-5 animate-spin" />
                     جاري تسجيل الدخول...

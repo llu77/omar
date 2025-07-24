@@ -8,6 +8,7 @@
  */
 import OpenAI from 'openai';
 import { ConsultRehabExpertInput, ConsultRehabExpertOutput } from '@/types';
+import { StreamingTextResponse, OpenAIStream } from 'ai';
 
 // ==================== OpenAI Client Initialization ====================
 const openai = new OpenAI({
@@ -16,11 +17,11 @@ const openai = new OpenAI({
 
 // ==================== Main Export ====================
 /**
- * Consults with the rehabilitation expert AI.
+ * Consults with the rehabilitation expert AI and streams the response.
  * @param input - The consultation input containing the question and history.
- * @returns a promise with the expert's answer.
+ * @returns A streaming text response.
  */
-export async function consultRehabExpert(input: ConsultRehabExpertInput): Promise<ConsultRehabExpertOutput> {
+export async function consultRehabExpert(input: ConsultRehabExpertInput): Promise<Response> {
   try {
     const { question, history } = input;
 
@@ -44,22 +45,19 @@ Your primary rules are:
         model: process.env.DEFAULT_MODEL || 'gpt-4-turbo',
         messages: messages,
         temperature: 0.5,
+        stream: true,
     });
     
-    const answer = response.choices[0]?.message?.content;
+    const stream = OpenAIStream(response);
     
-    if (!answer) {
-        throw new Error('Empty response from AI model');
-    }
-
-    return { answer };
+    return new StreamingTextResponse(stream);
 
   } catch (error) {
     console.error('[ConsultRehabExpert] Error:', error);
     // Provide a user-friendly error message
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return {
-      answer: `⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك. يرجى المحاولة مرة أخرى لاحقاً. (الخطأ: ${errorMessage})`,
-    };
+    return new Response(`⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك. يرجى المحاولة مرة أخرى لاحقاً. (الخطأ: ${errorMessage})`, {
+        status: 500
+    });
   }
 }

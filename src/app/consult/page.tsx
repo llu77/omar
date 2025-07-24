@@ -1,88 +1,53 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useAuth } from '@/hooks/use-auth-provider';
 import { useRouter } from 'next/navigation';
-import { consultRehabExpert } from '@/ai/flows/consult-rehab-expert';
 import { Logo } from '@/components/logo';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
-import type { Message } from '@/types';
-
+import { useChat } from 'ai/react';
 
 export default function ConsultPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-
-  const [user, loading] = useAuthState(auth);
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+    onError: (err) => {
+      console.error('Consultation error:', err);
+    },
+  });
+
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/login');
     }
-  }, [user, loading, router]);
-  
+  }, [user, authLoading, router]);
+
   useEffect(() => {
-    // Scroll to the bottom when messages change
+    // Scroll to the bottom of the chat view
     if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
+      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
   }, [messages]);
-
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const historyForApi = messages.map(m => ({
-        role: m.role === 'model' ? 'assistant' : m.role, // Ensure 'assistant' is used for API
-        content: m.content
-      }));
-      
-      const result = await consultRehabExpert({
-        question: input,
-        history: historyForApi,
-      });
-
-      const modelMessage: Message = { role: 'assistant', content: result.answer };
-      setMessages((prev) => [...prev, modelMessage]);
-
-    } catch (error) {
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: 'عذراً، حدث خطأ أثناء محاولة الرد. يرجى المحاولة مرة أخرى.',
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      console.error('Consultation error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] max-w-3xl mx-auto">
       <Card className="flex-1 flex flex-col shadow-lg">
         <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-               <Bot className="h-12 w-12 text-primary"/>
-            </div>
+          <div className="flex justify-center mb-4">
+            <Bot className="h-12 w-12 text-primary" />
+          </div>
           <CardTitle className="text-3xl font-bold">استشرني</CardTitle>
           <CardDescription>
             مساعدك الذكي للتأهيل الطبي. اطرح سؤالك واحصل على إجابة علمية.
@@ -91,16 +56,16 @@ export default function ConsultPage() {
         <CardContent className="flex-1 flex flex-col p-0">
           <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
             <div className="space-y-6">
-              {messages.map((message, index) => (
+              {messages.map((message) => (
                 <div
-                  key={index}
+                  key={message.id}
                   className={`flex items-start gap-3 ${
                     message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
                   {message.role !== 'user' && (
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20}/></AvatarFallback>
+                      <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20} /></AvatarFallback>
                     </Avatar>
                   )}
                   <div
@@ -112,17 +77,17 @@ export default function ConsultPage() {
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                   </div>
-                   {message.role === 'user' && (
-                     <Avatar className="h-8 w-8">
-                       <AvatarFallback><User size={20}/></AvatarFallback>
+                  {message.role === 'user' && (
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback><User size={20} /></AvatarFallback>
                     </Avatar>
                   )}
                 </div>
               ))}
-               {isLoading && (
+              {isLoading && (
                 <div className="flex items-start gap-3 justify-start">
-                   <Avatar className="h-8 w-8">
-                     <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20}/></AvatarFallback>
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20} /></AvatarFallback>
                   </Avatar>
                   <div className="bg-secondary rounded-xl px-4 py-3 flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -133,10 +98,10 @@ export default function ConsultPage() {
             </div>
           </ScrollArea>
           <div className="p-4 border-t">
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+            <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <Input
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 placeholder="اسأل عن أي شيء يخص التأهيل الطبي..."
                 className="flex-1"
                 disabled={isLoading}
