@@ -6,9 +6,10 @@
 // ==================== Core Exports ====================
 
 export {
-    // Genkit instance and utilities
-    ai,
+    // Genkit utilities
     z,
+    defineFlow,
+    generate,
   } from './genkit';
   
   // ==================== Flow Exports ====================

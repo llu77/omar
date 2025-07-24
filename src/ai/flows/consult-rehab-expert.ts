@@ -5,7 +5,7 @@
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 
-import {ai} from '@/ai/genkit';
+import {defineFlow, generate} from '@/ai/genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {z} from 'zod';
 
@@ -37,7 +37,7 @@ export type ConsultRehabExpertOutput = z.infer<
 
 // ==================== Flow Definition ====================
 
-const consultRehabExpertFlow = ai.defineFlow(
+const consultRehabExpertFlow = defineFlow(
   {
     name: 'consultRehabExpertFlow',
     inputSchema: ConsultRehabExpertInputSchema,
@@ -56,15 +56,15 @@ Your primary rules are:
 
     const model = googleAI.model('gemini-pro');
 
-    const messages: {role: 'system' | 'user' | 'model'; content: string}[] = [
-      {role: 'system', content: systemPrompt},
+    const messages: {role: 'system' | 'user' | 'model'; content: {text: string}[]}[] = [
+      {role: 'system', content: [{text: systemPrompt}]},
     ];
     history.forEach(msg => {
-      messages.push({role: msg.role, content: msg.content});
+      messages.push({role: msg.role, content: [{text: msg.content}]});
     });
-    messages.push({role: 'user', content: question});
+    messages.push({role: 'user', content: [{text: question}]});
 
-    const {output} = await ai.generate({
+    const response = await generate({
       model,
       prompt: {
         messages: messages,
@@ -74,12 +74,13 @@ Your primary rules are:
       },
     });
 
-    if (!output || !output.text) {
+    const outputText = response.text();
+    if (!outputText) {
       throw new Error('Empty response from AI model');
     }
 
     return {
-      answer: output.text,
+      answer: outputText,
     };
   }
 );
@@ -89,7 +90,7 @@ Your primary rules are:
 /**
  * Consults with the rehabilitation expert AI.
  * @param input - The consultation input containing the question and history.
- * @returns A promise with the expert's answer.
+ * @returns a promise with the expert's answer.
  */
 export async function consultRehabExpert(
   input: ConsultRehabExpertInput

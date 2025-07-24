@@ -8,7 +8,7 @@
  * - GenerateEnhancedRehabPlanOutput: The Zod schema for the output.
  */
 
-import {ai} from '@/ai/genkit';
+import {defineFlow, generate} from '@/ai/genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {z} from 'zod';
 
@@ -72,39 +72,31 @@ export type GenerateEnhancedRehabPlanOutput = z.infer<
 
 // ==================== Prompt Definition ====================
 
-const rehabPlanPrompt = ai.definePrompt({
-  name: 'rehabPlanPrompt',
-  input: {schema: GenerateEnhancedRehabPlanInputSchema},
-  output: {
-    format: 'json',
-    schema: GenerateEnhancedRehabPlanOutputSchema,
-  },
-  prompt: `You are an expert physical therapist. Create a detailed and scientific rehabilitation plan.
+const rehabPlanPrompt = `You are an expert physical therapist. Create a detailed and scientific rehabilitation plan.
 
 Patient Information:
-- Age: {{{age}}} years
-- Gender: {{{gender}}}
-- Job: {{{job}}}
-- Symptoms: {{{symptoms}}}
+- Age: {{age}} years
+- Gender: {{gender}}
+- Job: {{job}}
+- Symptoms: {{symptoms}}
 
 Motor Abilities:
-- Neck Control: {{{neck}}}
-- Trunk Control: {{{trunk}}}
-- Standing Ability: {{{standing}}}
-- Walking Ability: {{{walking}}}
+- Neck Control: {{neck}}
+- Trunk Control: {{trunk}}
+- Standing Ability: {{standing}}
+- Walking Ability: {{walking}}
 
 Medical Information:
-- Medications: {{{medications}}}
-- Fractures: {{{fractures}}}
+- Medications: {{medications}}
+- Fractures: {{fractures}}
 
 Your response must be in JSON format, strictly following the output schema.
 The rehabPlan should be detailed, structured into a 12-week program, and formatted using Markdown for clarity.
-All text must be in Arabic.`,
-});
+All text must be in Arabic.`;
 
 // ==================== Flow Definition ====================
 
-const generateRehabPlanFlow = ai.defineFlow(
+const generateRehabPlanFlow = defineFlow(
   {
     name: 'generateRehabPlanFlow',
     inputSchema: GenerateEnhancedRehabPlanInputSchema,
@@ -113,16 +105,20 @@ const generateRehabPlanFlow = ai.defineFlow(
   async input => {
     const model = googleAI.model('gemini-pro');
 
-    const {output} = await rehabPlanPrompt(
-      {
-        model: model,
-        config: {
-          temperature: 0.7,
-        },
+    const response = await generate({
+      model: model,
+      prompt: rehabPlanPrompt,
+      input: input,
+      config: {
+        temperature: 0.7,
       },
-      input
-    );
+      output: {
+        format: 'json',
+        schema: GenerateEnhancedRehabPlanOutputSchema,
+      }
+    });
 
+    const output = response.output();
     if (!output) {
       throw new Error('Failed to generate a rehabilitation plan.');
     }
