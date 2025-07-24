@@ -80,6 +80,8 @@ const steps = [
   { id: 3, title: "التاريخ الطبي", fields: ['medications', 'medications_details', 'fractures', 'fractures_details'] },
 ];
 
+const totalRequiredFields = 11; // Statically define the number of required fields for progress calculation
+
 export default function AssessmentPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -128,27 +130,14 @@ export default function AssessmentPage() {
   const watchedFields = useWatch({ control: form.control });
 
   useEffect(() => {
-    const totalFields = Object.keys(formSchema.shape).length - 2; // excluding optional detail fields
-    
-    // Safer progress calculation
-    const filledCount = Object.keys(watchedFields).reduce((count, key) => {
-        const typedKey = key as keyof FormValues;
-        const value = watchedFields[typedKey];
-
-        // Skip optional detail fields for this calculation logic
-        if (typedKey === 'medications_details' || typedKey === 'fractures_details') {
-            return count;
-        }
-
-        if (value !== undefined && value !== null && value !== "") {
-            return count + 1;
-        }
-        return count;
-    }, 0);
-
-    const progress = (filledCount / totalFields) * 100;
-    setFormProgress(Math.min(progress, 100));
-}, [watchedFields]);
+      // More robust progress calculation
+      const filledCount = Object.values(watchedFields).filter(value => {
+          return value !== undefined && value !== null && value !== "";
+      }).length;
+      
+      const progress = (filledCount / totalRequiredFields) * 100;
+      setFormProgress(Math.min(progress, 100));
+  }, [watchedFields]);
 
 
   const nextStep = async () => {
