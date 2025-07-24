@@ -2,11 +2,12 @@
 'use server';
 
 /**
- * @fileoverview AI flow for rehabilitation expert consultation using OpenAI.
- * Provides scientific, evidence-based answers to rehabilitation questions.
+ * @fileoverview AI flow for a rehabilitation expert consultant.
+ * This flow powers the "Consult Me" feature, allowing users to ask
+ * rehabilitation-related questions and get scientific answers.
  */
 import OpenAI from 'openai';
-import { ConsultRehabExpertInput, ConsultRehabExpertInputSchema, ConsultRehabExpertOutput } from '@/types';
+import { ConsultRehabExpertInput, ConsultRehabExpertOutput } from '@/types';
 
 // ==================== OpenAI Client Initialization ====================
 const openai = new OpenAI({
@@ -21,8 +22,7 @@ const openai = new OpenAI({
  */
 export async function consultRehabExpert(input: ConsultRehabExpertInput): Promise<ConsultRehabExpertOutput> {
   try {
-    const validatedInput = ConsultRehabExpertInputSchema.parse(input);
-    const { question, history } = validatedInput;
+    const { question, history } = input;
 
     const systemPrompt = `You are "Wassel AI Rehab Consultant," a virtual assistant expert in physical therapy and rehabilitation.
 
@@ -36,12 +36,12 @@ Your primary rules are:
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },
-      ...history,
+      ...history.map(msg => ({ role: msg.role === 'model' ? 'assistant' : msg.role, content: msg.content })),
       { role: 'user', content: question },
     ];
 
     const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: process.env.DEFAULT_MODEL || 'gpt-4-turbo',
         messages: messages,
         temperature: 0.5,
     });

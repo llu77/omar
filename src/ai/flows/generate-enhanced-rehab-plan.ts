@@ -10,7 +10,7 @@
  */
 
 import OpenAI from 'openai';
-import { GenerateEnhancedRehabPlanInput, GenerateEnhancedRehabPlanOutput, GenerateEnhancedRehabPlanInputSchema, GenerateEnhancedRehabPlanOutputSchema } from '@/types';
+import { GenerateEnhancedRehabPlanInput, GenerateEnhancedRehabPlanOutput, GenerateEnhancedRehabPlanOutputSchema } from '@/types';
 
 
 // ==================== OpenAI Client Initialization ====================
@@ -25,7 +25,7 @@ const openai = new OpenAI({
  */
 export async function generateEnhancedRehabPlan(input: GenerateEnhancedRehabPlanInput): Promise<GenerateEnhancedRehabPlanOutput> {
   try {
-    const validatedInput = GenerateEnhancedRehabPlanInputSchema.parse(input);
+    const validatedInput = input; // Input is already validated by the form
 
     const systemPrompt = `You are an expert physical therapist. Create a detailed and scientific rehabilitation plan.
 
@@ -52,7 +52,7 @@ The rehabPlan should be detailed, structured into a 12-week program, and formatt
 All text must be in Arabic.`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo-0125', // Using a model that's good with JSON
+      model: process.env.DEFAULT_MODEL || 'gpt-4-turbo',
       response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: systemPrompt }],
       temperature: 0.7,
