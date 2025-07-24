@@ -8,7 +8,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { Message } from 'genkit';
 
 // Zod schema for a single message in the chat history
 const MessageSchema = z.object({
@@ -54,11 +53,11 @@ const consultRehabExpertFlow = ai.defineFlow(
   },
   async (input) => {
     
-    // Construct the message history for the model
-    const messages: Message[] = [
-        new Message('system', systemPrompt),
-        ...input.history.map(msg => new Message(msg.role, msg.content)),
-        new Message('user', input.question),
+    // Construct the message history for the model using plain objects
+    const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...input.history.map(msg => ({ role: msg.role, content: msg.content })),
+        { role: 'user' as const, content: input.question },
     ];
 
     const { output } = await ai.generate({
