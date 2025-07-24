@@ -23,8 +23,8 @@ export interface PatientDataForAI {
   symptoms: string;
   neck: "yes" | "partially" | "no";
   trunk: "yes" | "partially" | "no";
-  standing: "yes" | "with assistance" | "no";
-  walking: "yes" | "with assistance" | "no";
+  standing: "yes" | "assisted" | "no";
+  walking: "yes" | "assisted" | "no";
   medications: string;
   fractures: string;
 }

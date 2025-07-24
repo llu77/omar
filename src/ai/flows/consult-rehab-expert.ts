@@ -5,8 +5,9 @@
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
 
-import {ai, z} from '@/ai/genkit';
+import {ai} from '@/ai/genkit';
 import {openai} from 'genkitx-openai';
+import {z} from 'zod';
 
 // ==================== Schema Definitions ====================
 
@@ -27,8 +28,12 @@ export const ConsultRehabExpertOutputSchema = z.object({
 // ==================== Type Exports ====================
 
 export type Message = z.infer<typeof MessageSchema>;
-export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
-export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
+export type ConsultRehabExpertInput = z.infer<
+  typeof ConsultRehabExpertInputSchema
+>;
+export type ConsultRehabExpertOutput = z.infer<
+  typeof ConsultRehabExpertOutputSchema
+>;
 
 // ==================== Flow Definition ====================
 
@@ -49,15 +54,21 @@ Your primary rules are:
 5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
 6.  **Language**: All responses must be in Arabic.`;
 
-    const model = openai('gpt-3.5-turbo');
+    const model = openai.model('gpt-3.5-turbo');
+
+    const messages: {role: 'system' | 'user' | 'model'; content: string}[] = [
+      {role: 'system', content: systemPrompt},
+    ];
+    history.forEach(msg => {
+      messages.push({role: msg.role, content: msg.content});
+    });
+    messages.push({role: 'user', content: question});
 
     const {output} = await ai.generate({
       model,
-      prompt: systemPrompt,
-      history: [
-        ...history,
-        {role: 'user', content: question},
-      ],
+      prompt: {
+        messages: messages,
+      },
       config: {
         temperature: 0.5,
       },

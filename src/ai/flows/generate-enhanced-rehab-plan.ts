@@ -27,21 +27,49 @@ const GenerateEnhancedRehabPlanInputSchema = z.object({
 });
 
 const GenerateEnhancedRehabPlanOutputSchema = z.object({
-  initialDiagnosis: z.string().describe('The potential functional diagnosis based on the provided information.'),
-  prognosis: z.string().describe('Expectations for improvement over 12 weeks with estimated percentages.'),
-  rehabPlan: z.string().describe('A detailed 12-week rehabilitation plan including stages, exercises, and goals. Should be formatted as markdown.'),
-  precautions: z.string().describe('Important precautions to consider during the program.'),
-  medicationsInfluence: z.string().describe('The impact of the mentioned medications on the rehabilitation program.'),
-  fracturesInfluence: z.string().describe('Special considerations for fractures, if any, and their impact on the plan.'),
-  reviewAppointments: z.string().describe('The proposed follow-up schedule with details.'),
+  initialDiagnosis: z
+    .string()
+    .describe(
+      'The potential functional diagnosis based on the provided information.'
+    ),
+  prognosis: z
+    .string()
+    .describe(
+      'Expectations for improvement over 12 weeks with estimated percentages.'
+    ),
+  rehabPlan: z
+    .string()
+    .describe(
+      'A detailed 12-week rehabilitation plan including stages, exercises, and goals. Should be formatted as markdown.'
+    ),
+  precautions: z
+    .string()
+    .describe('Important precautions to consider during the program.'),
+  medicationsInfluence: z
+    .string()
+    .describe(
+      'The impact of the mentioned medications on the rehabilitation program.'
+    ),
+  fracturesInfluence: z
+    .string()
+    .describe(
+      'Special considerations for fractures, if any, and their impact on the plan.'
+    ),
+  reviewAppointments: z
+    .string()
+    .describe('The proposed follow-up schedule with details.'),
 });
 
 // ==================== Type Exports ====================
 
-export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
-export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
+export type GenerateEnhancedRehabPlanInput = z.infer<
+  typeof GenerateEnhancedRehabPlanInputSchema
+>;
+export type GenerateEnhancedRehabPlanOutput = z.infer<
+  typeof GenerateEnhancedRehabPlanOutputSchema
+>;
 
-// ==================== Flow Definition ====================
+// ==================== Prompt Definition ====================
 
 const rehabPlanPrompt = ai.definePrompt({
   name: 'rehabPlanPrompt',
@@ -73,19 +101,26 @@ The rehabPlan should be detailed, structured into a 12-week program, and formatt
 All text must be in Arabic.`,
 });
 
+// ==================== Flow Definition ====================
+
 const generateRehabPlanFlow = ai.defineFlow(
   {
     name: 'generateRehabPlanFlow',
     inputSchema: GenerateEnhancedRehabPlanInputSchema,
     outputSchema: GenerateEnhancedRehabPlanOutputSchema,
   },
-  async (input) => {
-    const {output} = await rehabPlanPrompt({
-        model: openai('gpt-3.5-turbo'),
+  async input => {
+    const model = openai.model('gpt-3.5-turbo');
+
+    const {output} = await rehabPlanPrompt(
+      {
+        model: model,
         config: {
-            temperature: 0.7,
-        }
-    }, input);
+          temperature: 0.7,
+        },
+      },
+      input
+    );
 
     if (!output) {
       throw new Error('Failed to generate a rehabilitation plan.');
@@ -94,7 +129,6 @@ const generateRehabPlanFlow = ai.defineFlow(
     return output;
   }
 );
-
 
 // ==================== Main Export ====================
 
@@ -106,13 +140,18 @@ const generateRehabPlanFlow = ai.defineFlow(
 export async function generateEnhancedRehabPlan(
   input: GenerateEnhancedRehabPlanInput
 ): Promise<GenerateEnhancedRehabPlanOutput> {
-    try {
-        const validatedInput = GenerateEnhancedRehabPlanInputSchema.parse(input);
-        const result = await generateRehabPlanFlow(validatedInput);
-        return result;
-    } catch (error) {
-        console.error('[GenerateEnhancedRehabPlan] Error:', error);
-        // In case of an error, re-throw it to be handled by the caller.
-        throw new Error(`Failed to process the rehabilitation plan request: ${error instanceof Error ? error.message : String(error)}`);
-    }
+  try {
+    const validatedInput =
+      GenerateEnhancedRehabPlanInputSchema.parse(input);
+    const result = await generateRehabPlanFlow(validatedInput);
+    return result;
+  } catch (error) {
+    console.error('[GenerateEnhancedRehabPlan] Error:', error);
+    // In case of an error, re-throw it to be handled by the caller.
+    throw new Error(
+      `Failed to process the rehabilitation plan request: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 }
