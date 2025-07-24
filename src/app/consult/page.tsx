@@ -14,7 +14,7 @@ import { Logo } from '@/components/logo';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 
 interface Message {
-  role: 'user' | 'model';
+  role: 'user' | 'assistant';
   content: string;
 }
 
@@ -54,19 +54,21 @@ export default function ConsultPage() {
     setIsLoading(true);
 
     try {
-      const history = messages.map(msg => ({ role: msg.role, content: msg.content }));
+      // The history needs to be of type Message[] which matches the updated schema
+      const history = messages.filter(m => m.role === 'user' || m.role === 'assistant');
       
       const result = await consultRehabExpert({
         question: input,
         history: history,
       });
 
-      const modelMessage: Message = { role: 'model', content: result.answer };
+      // The role from the AI is 'assistant'
+      const modelMessage: Message = { role: 'assistant', content: result.answer };
       setMessages((prev) => [...prev, modelMessage]);
 
     } catch (error) {
       const errorMessage: Message = {
-        role: 'model',
+        role: 'assistant',
         content: 'عذراً، حدث خطأ أثناء محاولة الرد. يرجى المحاولة مرة أخرى.',
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -98,7 +100,7 @@ export default function ConsultPage() {
                     message.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {message.role === 'model' && (
+                  {message.role === 'assistant' && (
                     <Avatar className="h-8 w-8">
                       <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={20}/></AvatarFallback>
                     </Avatar>

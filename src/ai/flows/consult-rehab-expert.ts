@@ -2,16 +2,20 @@
 'use server';
 
 /**
- * @fileoverview AI flow for rehabilitation expert consultation.
+ * @fileoverview AI flow for rehabilitation expert consultation using OpenAI.
  * Provides scientific, evidence-based answers to rehabilitation questions.
  */
+import OpenAI from 'openai';
+import { z } from 'zod';
 
-import {ai, z, defineFlow, generate} from '@/ai/genkit';
+// ==================== OpenAI Client Initialization ====================
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // ==================== Schema Definitions ====================
-
 export const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
+  role: z.enum(['user', 'assistant']),
   content: z.string().min(1),
 });
 
@@ -25,24 +29,21 @@ export const ConsultRehabExpertOutputSchema = z.object({
 });
 
 // ==================== Type Exports ====================
-
 export type Message = z.infer<typeof MessageSchema>;
-export type ConsultRehabExpertInput = z.infer<
-  typeof ConsultRehabExpertInputSchema
->;
-export type ConsultRehabExpertOutput = z.infer<
-  typeof ConsultRehabExpertOutputSchema
->;
+export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
+export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
 
-// ==================== Flow Definition ====================
+// ==================== Main Export ====================
+/**
+ * Consults with the rehabilitation expert AI.
+ * @param input - The consultation input containing the question and history.
+ * @returns a promise with the expert's answer.
+ */
+export async function consultRehabExpert(input: ConsultRehabExpertInput): Promise<ConsultRehabExpertOutput> {
+  try {
+    const validatedInput = ConsultRehabExpertInputSchema.parse(input);
+    const { question, history } = validatedInput;
 
-const consultRehabExpertFlow = defineFlow(
-  {
-    name: 'consultRehabExpertFlow',
-    inputSchema: ConsultRehabExpertInputSchema,
-    outputSchema: ConsultRehabExpertOutputSchema,
-  },
-  async ({question, history}) => {
     const systemPrompt = `You are "Wassel AI Rehab Consultant," a virtual assistant expert in physical therapy and rehabilitation.
 
 Your primary rules are:
@@ -53,57 +54,32 @@ Your primary rules are:
 5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
 6.  **Language**: All responses must be in Arabic.`;
 
-    const model = ai.model('gemini-pro');
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: question },
+    ];
 
-    const messages: {
-      role: 'system' | 'user' | 'model';
-      content: {text: string}[];
-    }[] = [{role: 'system', content: [{text: systemPrompt}]}];
-    history.forEach(msg => {
-      messages.push({role: msg.role, content: [{text: msg.content}]});
-    });
-    messages.push({role: 'user', content: [{text: question}]});
-
-    const response = await generate({
-      model,
-      prompt: {
+    const response = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
         messages: messages,
-      },
-      config: {
         temperature: 0.5,
-      },
     });
-
-    const outputText = response.text;
-    if (!outputText) {
-      throw new Error('Empty response from AI model');
+    
+    const answer = response.choices[0]?.message?.content;
+    
+    if (!answer) {
+        throw new Error('Empty response from AI model');
     }
 
-    return {
-      answer: outputText,
-    };
-  }
-);
+    return { answer };
 
-// ==================== Main Export ====================
-
-/**
- * Consults with the rehabilitation expert AI.
- * @param input - The consultation input containing the question and history.
- * @returns a promise with the expert's answer.
- */
-export async function consultRehabExpert(
-  input: ConsultRehabExpertInput
-): Promise<ConsultRehabExpertOutput> {
-  try {
-    const validatedInput = ConsultRehabExpertInputSchema.parse(input);
-    return await consultRehabExpertFlow(validatedInput);
   } catch (error) {
     console.error('[ConsultRehabExpert] Error:', error);
     // Provide a user-friendly error message
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
     return {
-      answer:
-        '⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك. يرجى المحاولة مرة أخرى لاحقاً.',
+      answer: `⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك. يرجى المحاولة مرة أخرى لاحقاً. (الخطأ: ${errorMessage})`,
     };
   }
 }
