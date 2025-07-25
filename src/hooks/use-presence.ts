@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 /**
  * A custom hook to manage user's online presence in Firestore.
@@ -26,17 +26,19 @@ export default function usePresence() {
     const userStatusRef = doc(db, 'users', user.uid);
 
     const updateStatus = (status: 'online' | 'offline') => {
-      return updateDoc(userStatusRef, {
+      // Use setDoc with merge:true to prevent errors if the document doesn't exist yet.
+      // This makes the presence system more robust.
+      return setDoc(userStatusRef, {
         status: status,
         lastSeen: serverTimestamp() as Timestamp,
-      });
+      }, { merge: true });
     };
 
     // Set online status immediately and start a heartbeat
     updateStatus('online');
     heartbeatIntervalRef.current = setInterval(() => {
       // Update lastSeen periodically to show the user is still active
-      updateDoc(userStatusRef, { lastSeen: serverTimestamp() as Timestamp });
+      setDoc(userStatusRef, { lastSeen: serverTimestamp() as Timestamp }, { merge: true });
     }, 30000); // 30-second heartbeat
 
     const handleBeforeUnload = () => {
