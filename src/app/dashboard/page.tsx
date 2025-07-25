@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -5,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { collection, query, where, limit, getDocs } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, BarChart3, Users, FileText, Bell, Target, TrendingUp, CheckCircle } from 'lucide-react';
@@ -39,14 +40,24 @@ export default function DashboardPage() {
   const totalUnreadCount = channels.reduce((sum, channel) => sum + (channel.unreadCounts?.[user?.uid || ''] || 0), 0);
   
   // Placeholder data for other cards
-  const activePatients = 12;
-  const reportsGenerated = 38;
+  const [reportsCount, setReportsCount] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
+  
+  useEffect(() => {
+    async function fetchReportsCount() {
+        if(user) {
+            const reportsCol = collection(db, "reports");
+            const snapshot = await getDocs(reportsCol);
+            setReportsCount(snapshot.size);
+        }
+    }
+    fetchReportsCount();
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -76,7 +87,7 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activePatients}</div>
+            <div className="text-2xl font-bold">12</div>
             <p className="text-xs text-muted-foreground">+5 عن الشهر الماضي</p>
           </CardContent>
         </Card>
@@ -86,8 +97,8 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{reportsGenerated}</div>
-            <p className="text-xs text-muted-foreground">+12 هذا الأسبوع</p>
+            <div className="text-2xl font-bold">{reportsCount}</div>
+            <p className="text-xs text-muted-foreground">إجمالي التقارير في النظام</p>
           </CardContent>
         </Card>
         <Card>
@@ -159,3 +170,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

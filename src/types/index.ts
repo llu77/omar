@@ -132,3 +132,5 @@ export const GenerateEnhancedRehabPlanOutputSchema = z.object({
 
 export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
 export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
+
+    

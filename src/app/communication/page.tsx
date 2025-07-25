@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, or } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, updateDoc, increment } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -189,10 +189,20 @@ export default function CommunicationPage() {
     }
   }, [messagesSnapshot]);
 
+  // When opening a channel, reset its unread count for the current user
+  useEffect(() => {
+      if (activeChannelId && user && activeChannelData?.unreadCounts?.[user.uid] > 0) {
+        const channelRef = doc(db, 'channels', activeChannelId);
+        updateDoc(channelRef, {
+            [`unreadCounts.${user.uid}`]: 0
+        }).catch(err => console.error("Failed to reset unread count:", err));
+      }
+  }, [activeChannelId, user, activeChannelData]);
+
   // --- Handlers ---
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!messageContent.trim() || !user || !activeChannelId) return;
+    if (!messageContent.trim() || !user || !activeChannelId || !otherParticipantId) return;
 
     setIsSending(true);
     try {
@@ -211,10 +221,11 @@ export default function CommunicationPage() {
         timestamp: serverTimestamp(),
       });
 
-      // Update channel's last message
+      // Update channel's last message and increment unread count for the other user
       batch.update(channelRef, {
         lastMessageContent: messageContent,
-        lastMessageTimestamp: serverTimestamp()
+        lastMessageTimestamp: serverTimestamp(),
+        [`unreadCounts.${otherParticipantId}`]: increment(1)
       });
 
       await batch.commit();
@@ -244,10 +255,8 @@ export default function CommunicationPage() {
         
         let q;
         if (isEmail) {
-            // Search by email (case-insensitive by storing emails as lowercase)
             q = query(usersRef, where("email", "==", searchTerm.toLowerCase()));
         } else if (/^\d{6}$/.test(searchTerm)) {
-            // Search by 6-digit user code
             q = query(usersRef, where("userCode", "==", searchTerm));
         } else {
              toast({
@@ -286,24 +295,13 @@ export default function CommunicationPage() {
     if (!user) return;
     setIsCreatingChannel(true);
     try {
-      // =================================================================================
-      // DEVELOPER NOTE: This query requires a composite index in Firestore.
-      // If you see an error in the browser console that mentions an index, Firestore
-      // will provide a direct link to create it in the Firebase console.
-      // The required index is on the 'channels' collection, for the fields:
-      // `type` (Ascending) and `participants` (Array-Contains).
-      // Click the link from the error message to create it automatically.
-      // =================================================================================
-      const channelsRef = collection(db, 'channels');
-      const q = query(channelsRef, 
-        where('type', '==', 'direct'),
-        where('participants', 'in', [[user.uid, otherUser.id], [otherUser.id, user.uid]])
+      // Client-side check for an existing channel
+      const existingChannel = channels.find(channel => 
+        channel.type === 'direct' && 
+        channel.participants.includes(otherUser.id)
       );
 
-      const existingChannelsSnapshot = await getDocs(q);
-      
-      if (!existingChannelsSnapshot.empty) {
-        const existingChannel = existingChannelsSnapshot.docs[0];
+      if (existingChannel) {
         setActiveChannelId(existingChannel.id);
         toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
       } else {
@@ -312,7 +310,7 @@ export default function CommunicationPage() {
           type: 'direct',
           participants: [user.uid, otherUser.id],
           participantNames: {
-            [user.uid]: user.displayName,
+            [user.uid]: user.displayName || user.email,
             [otherUser.id]: otherUser.name,
           },
           participantAvatars: {
@@ -324,7 +322,7 @@ export default function CommunicationPage() {
           unreadCounts: { [user.uid]: 0, [otherUser.id]: 0 },
           createdAt: serverTimestamp(),
         };
-        const newChannelRef = await addDoc(channelsRef, newChannelData);
+        const newChannelRef = await addDoc(collection(db, 'channels'), newChannelData);
         setActiveChannelId(newChannelRef.id);
         toast({ title: "تم إنشاء المحادثة", description: `يمكنك الآن التواصل مع ${otherUser.name}.` });
       }
@@ -334,7 +332,7 @@ export default function CommunicationPage() {
 
     } catch (error) {
       console.error("Error creating channel:", error);
-      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة. قد تحتاج إلى إنشاء فهرس مركب في Firestore. راجع الكونسول لمزيد من التفاصيل.' });
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة. تحقق من اتصالك بالإنترنت.' });
     } finally {
       setIsCreatingChannel(false);
     }
@@ -501,3 +499,5 @@ export default function CommunicationPage() {
     </div>
   );
 }
+
+    
