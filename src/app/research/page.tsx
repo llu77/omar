@@ -63,12 +63,12 @@ export default function ResearchPage() {
     <div className="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto animate-in fade-in-50">
 
       {/* Page Header */}
-      <header className="text-center mb-10">
-        <div className="inline-block bg-primary/10 p-4 rounded-full mb-4">
-          <FlaskConical className="h-12 w-12 text-primary" />
+      <header className="text-center mb-6">
+        <div className="inline-block bg-primary/10 p-3 rounded-full mb-3">
+          <FlaskConical className="h-10 w-10 text-primary" />
         </div>
-        <h1 className="text-4xl font-bold font-headline">مساعد البحوث العلمية</h1>
-        <p className="text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold font-headline">مساعد البحوث العلمية</h1>
+        <p className="text-base text-muted-foreground mt-2 max-w-2xl mx-auto">
           احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة، معززة بالذكاء الاصطناعي.
         </p>
       </header>
