@@ -239,8 +239,9 @@ export default function CommunicationPage() {
     setSearchResults([]);
     try {
       const usersRef = collection(db, "users");
-      // IMPORTANT: Firestore queries are case-sensitive. Searching by email might
-      // require storing emails in a consistent case (e.g., lowercase) during registration.
+      // IMPORTANT: Firestore queries are case-sensitive. Searching by email will
+      // be more reliable if you enforce storing emails in a consistent case 
+      // (e.g., lowercase) during user registration.
       const q = query(usersRef, where("email", "==", searchEmail.trim().toLowerCase()));
       const querySnapshot = await getDocs(q);
       const results: User[] = [];
@@ -287,7 +288,7 @@ export default function CommunicationPage() {
       existingChannelsSnapshot.forEach(doc => {
         const channel = doc.data() as CommunicationChannel;
         const p = channel.participants;
-        if (p.includes(user.uid) && p.includes(otherUser.id)) {
+        if (p.length === 2 && p.includes(user.uid) && p.includes(otherUser.id)) {
             existingChannel = { id: doc.id, ...channel };
         }
       });
