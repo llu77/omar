@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, updateDoc, increment } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, updateDoc, increment, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,6 +139,7 @@ export default function CommunicationPage() {
   const { toast } = useToast();
 
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [allChannels, setAllChannels] = useState<CommunicationChannel[]>([]);
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -156,8 +157,7 @@ export default function CommunicationPage() {
   const messagesQuery = activeChannelId ? query(collection(db, 'channels', activeChannelId, 'messages'), orderBy('timestamp', 'asc')) : null;
   const [messagesSnapshot, messagesLoading, messagesError] = useCollection(messagesQuery);
 
-  const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
-  const activeChannelData = channels.find(c => c.id === activeChannelId);
+  const activeChannelData = allChannels.find(c => c.id === activeChannelId);
 
   const otherParticipantId = activeChannelData?.type === 'direct' 
     ? activeChannelData.participants.find(p => p !== user?.uid) 
@@ -175,10 +175,17 @@ export default function CommunicationPage() {
   }, [user, loading, router]);
   
   useEffect(() => {
-    if (!activeChannelId && channels.length > 0) {
-      setActiveChannelId(channels[0].id);
+    if (channelsSnapshot) {
+      const channelsFromDb = channelsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel));
+      setAllChannels(channelsFromDb);
     }
-  }, [channels, activeChannelId]);
+  }, [channelsSnapshot]);
+
+  useEffect(() => {
+    if (!activeChannelId && allChannels.length > 0) {
+      setActiveChannelId(allChannels[0].id);
+    }
+  }, [allChannels, activeChannelId]);
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -296,7 +303,7 @@ export default function CommunicationPage() {
     setIsCreatingChannel(true);
     try {
       // Client-side check for an existing channel
-      const existingChannel = channels.find(channel => 
+      const existingChannel = allChannels.find(channel => 
         channel.type === 'direct' && 
         channel.participants.includes(otherUser.id)
       );
@@ -305,12 +312,12 @@ export default function CommunicationPage() {
         setActiveChannelId(existingChannel.id);
         toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
       } else {
-        const newChannelData = {
+        const newChannelData: Omit<CommunicationChannel, 'id'> = {
           name: otherUser.name,
           type: 'direct',
           participants: [user.uid, otherUser.id],
           participantNames: {
-            [user.uid]: user.displayName || user.email,
+            [user.uid]: user.displayName || user.email || 'مستخدم',
             [otherUser.id]: otherUser.name,
           },
           participantAvatars: {
@@ -318,11 +325,21 @@ export default function CommunicationPage() {
              [otherUser.id]: otherUser.photoURL || '',
           },
           lastMessageContent: `بدأت محادثة مع ${otherUser.name}`,
-          lastMessageTimestamp: serverTimestamp(),
+          lastMessageTimestamp: serverTimestamp() as any, // Cast for local state
           unreadCounts: { [user.uid]: 0, [otherUser.id]: 0 },
-          createdAt: serverTimestamp(),
+          createdAt: serverTimestamp() as any, // Cast for local state
         };
         const newChannelRef = await addDoc(collection(db, 'channels'), newChannelData);
+        
+        // Proactively update local state to prevent race conditions
+        const finalNewChannel: CommunicationChannel = {
+          ...newChannelData,
+          id: newChannelRef.id,
+          // Replace server timestamps with a client-side date for immediate rendering
+          lastMessageTimestamp: { toDate: () => new Date() } as any,
+          createdAt: { toDate: () => new Date() } as any,
+        };
+        setAllChannels(prev => [finalNewChannel, ...prev]);
         setActiveChannelId(newChannelRef.id);
         toast({ title: "تم إنشاء المحادثة", description: `يمكنك الآن التواصل مع ${otherUser.name}.` });
       }
@@ -412,7 +429,7 @@ export default function CommunicationPage() {
         </CardHeader>
         <ScrollArea className="flex-1">
           {channelsLoading && <div className="p-4 space-y-3"><Skeleton className="h-[72px] w-full"/><Skeleton className="h-[72px] w-full"/></div>}
-          {!channelsLoading && channels.length === 0 && (
+          {!channelsLoading && allChannels.length === 0 && (
             <div className="p-6 text-center text-muted-foreground h-full flex flex-col justify-center items-center">
               <MessageSquare className="mx-auto h-12 w-12" />
               <p className="mt-4">لا توجد محادثات.</p>
@@ -420,7 +437,7 @@ export default function CommunicationPage() {
             </div>
           )}
           <div className="p-2">
-            {channels.map(channel => (
+            {allChannels.map(channel => (
               <ChannelListItem 
                 key={channel.id} 
                 channel={channel}
