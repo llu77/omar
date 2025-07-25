@@ -20,30 +20,34 @@ import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
 import { AlertCircle, Check, Loader2, Printer, UploadCloud } from "lucide-react";
 
-type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput & { ownerId?: string };
+type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput & { ownerId?: string; createdAt?: any };
 
-type PageState = 'loading' | 'generating' | 'displaying' | 'error';
+type PageState = 'initial' | 'loading' | 'generating' | 'displaying' | 'error';
 
 export default function ReportPage() {
   const { fileNumber } = useParams() as { fileNumber: string };
   const router = useRouter();
   const { toast } = useToast();
-  const [user, loading] = useAuthState(auth);
+  const [user, authLoading] = useAuthState(auth);
 
-  const [pageState, setPageState] = useState<PageState>('loading');
+  const [pageState, setPageState] = useState<PageState>('initial');
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaving, startSavingTransition] = useTransition();
   const [isSaved, setIsSaved] = useState(false);
+  const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
-    loadReport();
-  }, [user, loading, fileNumber, router]);
+    if (!hasChecked) {
+        loadReport();
+        setHasChecked(true);
+    }
+  }, [user, authLoading, fileNumber, router, hasChecked]);
 
   const loadReport = async () => {
     if (!user) return;
@@ -52,23 +56,21 @@ export default function ReportPage() {
     setIsSaved(false);
   
     try {
-      // 1. Try to fetch from the global "reports" collection
       const reportDocRef = doc(db, "reports", fileNumber);
       const reportDoc = await getDoc(reportDocRef);
   
       if (reportDoc.exists()) {
-        const data = reportDoc.data();
+        const data = reportDoc.data() as ReportData;
         if (data.createdAt && data.createdAt instanceof Timestamp) {
             data.createdAt = data.createdAt.toDate();
         }
-        setReportData(data as ReportData);
+        setReportData(data);
         setIsSaved(true);
         setPageState('displaying');
         toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المشترك من السحابة." });
         return;
       }
       
-      // 2. If not in Firestore, check localStorage for patient data to generate a new one
       const localDataString = localStorage.getItem(`report-${fileNumber}`);
       if (!localDataString) {
         throw new Error("لم يتم العثور على بيانات التقييم لهذا الملف. يرجى البدء من جديد.");
@@ -76,7 +78,6 @@ export default function ReportPage() {
       
       const patientData: PatientDataForAI = JSON.parse(localDataString);
       
-      // 3. Generate the report using AI
       setPageState('generating');
       const aiInput = {
         job: patientData.job,
@@ -121,20 +122,16 @@ export default function ReportPage() {
 
     startSavingTransition(async () => {
       try {
-        // Save to the global "reports" collection
         const reportDocRef = doc(db, "reports", reportData.fileNumber);
         
         const dataToSave: ReportData = {
           ...reportData,
-          ownerId: user.uid, // Add owner information
-          createdAt: Timestamp.now() as any, // Firestore handles server timestamp
+          ownerId: user.uid,
+          createdAt: Timestamp.now() as any,
         };
 
         await setDoc(reportDocRef, dataToSave);
-
-        // Optionally remove from local storage after successful cloud save
         localStorage.removeItem(`report-${reportData.fileNumber}`);
-
         setIsSaved(true);
         toast({
           title: "تم الحفظ بنجاح",
@@ -151,97 +148,88 @@ export default function ReportPage() {
     });
   };
 
-  const renderContent = () => {
-    switch (pageState) {
-      case 'loading':
-        return (
-          <div className="space-y-6">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-64 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        );
-      case 'generating':
-        return (
-          <Card className="flex flex-col items-center justify-center p-12 text-center bg-secondary/50 border-primary/20 animate-pulse">
-            <Logo className="w-24 h-24 mb-6 animate-spin" showText={false} />
-            <h2 className="text-2xl font-bold text-primary">جاري إنشاء التقرير الشامل...</h2>
-            <p className="text-muted-foreground mt-2">يقوم نظام الذكاء الاصطناعي بتحليل البيانات لتوليد خطة تأهيلية دقيقة. قد تستغرق هذه العملية دقيقة.</p>
-          </Card>
-        );
-      case 'error':
-        return (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>خطأ فادح</AlertTitle>
-            <AlertDescription>
-              {errorMessage}
-              <div className="mt-4">
-                <Button onClick={() => router.push('/assessment')}>البدء من جديد</Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        );
-      case 'displaying':
-        if (!reportData) return null;
-        return (
-          <>
-            <header className="flex flex-col sm:flex-row items-center justify-between mb-8 no-print">
-              <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">
-                التقرير الطبي الشامل
-              </h1>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => window.print()}>
-                   <Printer className="ml-2 h-4 w-4"/>
-                  طباعة / حفظ PDF
-                </Button>
-                 {isSaved ? (
-                  <Button disabled variant="secondary">
-                     <Check className="ml-2 h-4 w-4"/>
-                    محفوظ في السحابة
-                  </Button>
-                ) : (
-                  <Button onClick={handleSaveToCloud} disabled={isSaving}>
-                     {isSaving ? (
-                      <>
-                        <Loader2 className="ml-2 h-4 w-4 animate-spin"/>
-                        جاري الحفظ...
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="ml-2 h-4 w-4"/>
-                        حفظ ومشاركة
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </header>
+  const renderHeader = () => (
+    <header className="flex flex-col sm:flex-row items-center justify-between mb-8 no-print">
+      <h1 className="text-3xl font-bold text-primary mb-4 sm:mb-0">
+        التقرير الطبي الشامل
+      </h1>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={() => window.print()} disabled={pageState !== 'displaying'}>
+           <Printer className="ml-2 h-4 w-4"/>
+          طباعة / حفظ PDF
+        </Button>
+         {isSaved ? (
+          <Button disabled variant="secondary">
+             <Check className="ml-2 h-4 w-4"/>
+            محفوظ في السحابة
+          </Button>
+        ) : (
+          <Button onClick={handleSaveToCloud} disabled={isSaving || pageState !== 'displaying'}>
+             {isSaving ? (
+              <>
+                <Loader2 className="ml-2 h-4 w-4 animate-spin"/>
+                جاري الحفظ...
+              </>
+            ) : (
+              <>
+                <UploadCloud className="ml-2 h-4 w-4"/>
+                حفظ ومشاركة
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    </header>
+  );
 
-            {/* Patient Info Card */}
-            <Card className="mb-8 print:shadow-none print:border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M22 16h-6"/></svg></div>
-                  معلومات المريض
-                </CardTitle>
-                <CardDescription>ملخص بيانات التقييم الأساسي</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
-                  <div><strong className="block text-muted-foreground">اسم المريض:</strong> {reportData.name}</div>
-                  <div><strong className="block text-muted-foreground">العمر:</strong> {reportData.age}</div>
-                  <div><strong className="block text-muted-foreground">الجنس:</strong> {reportData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
-                  <div><strong className="block text-muted-foreground">رقم الملف:</strong> <span className="font-mono">{reportData.fileNumber}</span></div>
-                  <div className="col-span-2"><strong className="block text-muted-foreground">الوظيفة:</strong> {reportData.job}</div>
-                  <div className="col-span-2 md:col-span-4"><strong className="block text-muted-foreground">الأعراض الرئيسية:</strong> {reportData.symptoms}</div>
-                </div>
-              </CardContent>
+  const renderPatientInfo = () => {
+    if (pageState !== 'displaying' || !reportData) {
+        return (
+            <Card className="mb-8">
+                <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                </CardContent>
             </Card>
+        );
+    }
+    return (
+        <Card className="mb-8 print:shadow-none print:border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <div className="w-6 h-6 text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6"/><path d="M22 16h-6"/></svg></div>
+              معلومات المريض
+            </CardTitle>
+            <CardDescription>ملخص بيانات التقييم الأساسي</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4 text-sm">
+              <div><strong className="block text-muted-foreground">اسم المريض:</strong> {reportData.name}</div>
+              <div><strong className="block text-muted-foreground">العمر:</strong> {reportData.age}</div>
+              <div><strong className="block text-muted-foreground">الجنس:</strong> {reportData.gender === 'male' ? 'ذكر' : 'أنثى'}</div>
+              <div><strong className="block text-muted-foreground">رقم الملف:</strong> <span className="font-mono">{reportData.fileNumber}</span></div>
+              <div className="col-span-2"><strong className="block text-muted-foreground">الوظيفة:</strong> {reportData.job}</div>
+              <div className="col-span-2 md:col-span-4"><strong className="block text-muted-foreground">الأعراض الرئيسية:</strong> {reportData.symptoms}</div>
+            </div>
+          </CardContent>
+        </Card>
+    );
+  }
 
-            <Accordion type="multiple" defaultValue={["diagnosis", "plan", "precautions"]} className="w-full space-y-4">
-              {/* Diagnosis */}
-              <AccordionItem value="diagnosis">
+  const renderAccordion = () => {
+    if (pageState !== 'displaying' || !reportData) {
+        return (
+             <div className="space-y-6">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        );
+    }
+    return (
+        <Accordion type="multiple" defaultValue={["diagnosis", "plan", "precautions"]} className="w-full space-y-4">
+            <AccordionItem value="diagnosis">
                 <Card className="print:shadow-none print:border">
                   <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
                      <div className="flex items-center gap-3">
@@ -258,10 +246,8 @@ export default function ReportPage() {
                     </div>
                   </AccordionContent>
                 </Card>
-              </AccordionItem>
-
-              {/* Rehab Plan */}
-              <AccordionItem value="plan">
+            </AccordionItem>
+            <AccordionItem value="plan">
                 <Card className="print:shadow-none print:border">
                   <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
                     <div className="flex items-center gap-3">
@@ -273,10 +259,8 @@ export default function ReportPage() {
                     <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: reportData.rehabPlan.replace(/\n/g, '<br />') }} />
                   </AccordionContent>
                 </Card>
-              </AccordionItem>
-
-              {/* Precautions */}
-              <AccordionItem value="precautions">
+            </AccordionItem>
+            <AccordionItem value="precautions">
                 <Card className="print:shadow-none print:border">
                   <AccordionTrigger className="px-6 text-lg font-semibold hover:no-underline">
                     <div className="flex items-center gap-3">
@@ -305,12 +289,48 @@ export default function ReportPage() {
                     </div>
                   </AccordionContent>
                 </Card>
-              </AccordionItem>
-            </Accordion>
-          </>
+            </AccordionItem>
+        </Accordion>
+    );
+  }
+
+  const renderBody = () => {
+    if (pageState === 'error') {
+      return (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>خطأ فادح</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
+            <div className="mt-4">
+              <Button onClick={() => router.push('/assessment')}>البدء من جديد</Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    if (pageState === 'generating') {
+        return (
+             <Card className="flex flex-col items-center justify-center p-12 text-center bg-secondary/50 border-primary/20 animate-pulse">
+                <Logo className="w-24 h-24 mb-6 animate-spin" showText={false} />
+                <h2 className="text-2xl font-bold text-primary">جاري إنشاء التقرير الشامل...</h2>
+                <p className="text-muted-foreground mt-2">يقوم نظام الذكاء الاصطناعي بتحليل البيانات لتوليد خطة تأهيلية دقيقة. قد تستغرق هذه العملية دقيقة.</p>
+            </Card>
         );
     }
-  };
+    return (
+        <>
+            {renderPatientInfo()}
+            {renderAccordion()}
+        </>
+    );
+  }
 
-  return <div className="max-w-5xl mx-auto">{renderContent()}</div>;
+  return (
+    <div className="max-w-5xl mx-auto">
+      {renderHeader()}
+      {renderBody()}
+    </div>
+  );
 }
+

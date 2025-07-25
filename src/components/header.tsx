@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -54,7 +55,6 @@ export default function Header() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  // useEffect runs only on the client, so we can safely set mounted to true
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -84,13 +84,24 @@ export default function Header() {
   };
   
   const renderAuthSection = () => {
-    // On the server, or when loading, or before the client is mounted, render a placeholder.
-    // This ensures the server-rendered HTML matches the initial client-rendered HTML.
-    if (!mounted || loading) {
-       return <Skeleton className="h-10 w-24 rounded-md" />;
+    if (!mounted) {
+      return (
+        <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-24" />
+        </div>
+      );
+    }
+    
+    if (loading) {
+       return (
+        <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-10 md:hidden" />
+        </div>
+       );
     }
 
-    // After mounting and once loading is false, render the actual content.
     if (user) {
       return (
         <>
@@ -131,7 +142,6 @@ export default function Header() {
       );
     }
     
-    // Render for logged-out users
     return (
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost">
@@ -144,6 +154,23 @@ export default function Header() {
     );
   };
 
+  const renderThemeToggle = () => {
+    if (!mounted) {
+        return <Skeleton className="h-10 w-10 rounded-full"/>
+    }
+    return (
+        <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle Theme"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
+        </Button>
+    )
+  }
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -155,7 +182,7 @@ export default function Header() {
               <span className="font-headline text-xl font-bold hidden sm:inline">WASL AI</span>
             </Link>
 
-            {user && (
+            {user && mounted && (
               <div className="hidden md:flex items-center gap-1">
                 {UserNavigation.map((item) => {
                   const isActive = pathname.startsWith(item.href);
@@ -180,18 +207,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
-            {mounted ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Toggle Theme"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
-                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
-              </Button>
-            ) : <Skeleton className="h-10 w-10 rounded-full"/> }
-            
+            {renderThemeToggle()}
             <div className="flex items-center gap-2">{renderAuthSection()}</div>
           </div>
         </div>
