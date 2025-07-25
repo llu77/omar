@@ -94,11 +94,14 @@ export interface Goal {
   id: string;
   title: string;
   patient: string;
+  fileNumber: string;
   category: 'medical' | 'functional';
   status: 'on_track' | 'needs_attention' | 'at_risk' | 'achieved';
   progress: number;
   createdAt: any;
   createdBy: string;
+  creatorName?: string;
+  creatorUserCode?: string;
 }
 
 
