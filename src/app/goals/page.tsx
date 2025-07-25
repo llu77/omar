@@ -3,14 +3,14 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, orderBy, doc, getDocs, limit, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, orderBy, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Target, Users, TrendingUp, PlusCircle, Filter, Loader2, Dumbbell, Activity, X } from 'lucide-react';
+import { CheckCircle, Target, Users, TrendingUp, PlusCircle, FileText, Loader2, Dumbbell, Activity, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { Goal } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -24,7 +24,7 @@ import * as z from 'zod';
 
 const goalFormSchema = z.object({
   title: z.string().min(5, "يجب أن يكون العنوان 5 أحرف على الأقل."),
-  patient: z.string().min(2, "اسم المريض مطلوب."),
+  fileNumber: z.string().min(5, "رقم ملف المريض مطلوب."),
   category: z.enum(['medical', 'functional'], {
     required_error: "فئة الهدف مطلوبة.",
   }),
@@ -50,6 +50,8 @@ export default function GoalsPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  const [userData, userDataLoading] = useDocumentData(user ? doc(db, 'users', user.uid) : null);
 
   const goalsCollectionRef = collection(db, 'goals');
   const goalsQuery = query(goalsCollectionRef, orderBy('createdAt', 'desc'));
@@ -61,7 +63,7 @@ export default function GoalsPage() {
     resolver: zodResolver(goalFormSchema),
     defaultValues: {
       title: "",
-      patient: "",
+      fileNumber: "",
       category: undefined,
     },
   });
@@ -73,8 +75,8 @@ export default function GoalsPage() {
   }, [user, loading, router]);
   
   const handleAddGoal = async (values: GoalFormValues) => {
-    if (!user) {
-        toast({ variant: "destructive", title: "خطأ", description: "يجب تسجيل الدخول لإضافة هدف." });
+    if (!user || userDataLoading) {
+        toast({ variant: "destructive", title: "خطأ", description: "يجب تسجيل الدخول وجلب بيانات المستخدم لإضافة هدف." });
         return;
     }
     setIsSubmitting(true);
@@ -83,8 +85,9 @@ export default function GoalsPage() {
             ...values,
             status: 'on_track',
             progress: 0,
-            team: [user.displayName || user.email],
             createdBy: user.uid,
+            creatorName: userData?.name || 'مستخدم غير معروف',
+            creatorUserCode: userData?.userCode || 'N/A',
             createdAt: serverTimestamp(),
         });
 
@@ -156,11 +159,11 @@ export default function GoalsPage() {
                                 <FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="patient" render={({ field }) => (
+                        <FormField control={form.control} name="fileNumber" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>اسم المريض</FormLabel>
+                                <FormLabel>رقم ملف المريض</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="الاسم الكامل للمريض" {...field} />
+                                    <Input placeholder="WSL-2025-..." {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -182,8 +185,8 @@ export default function GoalsPage() {
                             <DialogClose asChild>
                                 <Button type="button" variant="secondary">إلغاء</Button>
                             </DialogClose>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                            <Button type="submit" disabled={isSubmitting || userDataLoading}>
+                                {(isSubmitting || userDataLoading) && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                                 حفظ الهدف
                             </Button>
                         </DialogFooter>
@@ -195,7 +198,7 @@ export default function GoalsPage() {
 
       {goalsLoading && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-52 w-full" />)}
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-56 w-full" />)}
         </div>
       )}
 
@@ -225,7 +228,9 @@ export default function GoalsPage() {
                         </div>
                         <div>
                             <CardTitle className="text-base font-bold leading-tight">{goal.title}</CardTitle>
-                            <CardDescription>{goal.patient}</CardDescription>
+                            <CardDescription className="flex items-center gap-1 font-mono text-xs">
+                                <FileText className="w-3 h-3"/>{goal.fileNumber}
+                            </CardDescription>
                         </div>
                     </div>
                      {goal.status === 'achieved' ? 
@@ -246,9 +251,9 @@ export default function GoalsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                    <div className="flex items-center gap-2">
-                     <Users className="h-4 w-4 text-muted-foreground" />
-                     <p className="text-sm text-muted-foreground">{goal.team.join(', ')}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                     <User className="h-3 w-3" />
+                     <span>{goal.creatorName} ({goal.creatorUserCode})</span>
                   </div>
                 </CardFooter>
               </Card>
