@@ -35,6 +35,14 @@ export interface PatientDataForAI {
 
 // ==================== New Feature Schemas ====================
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role?: string;
+  photoURL?: string;
+}
+
 export interface DashboardData {
   patientId: string;
   unifiedView: object; // To be defined in detail later
@@ -46,6 +54,7 @@ export interface Message {
   content: string;
   senderId: string;
   senderName: string;
+  senderAvatarUrl?: string;
   timestamp: Timestamp;
 }
 
@@ -54,6 +63,8 @@ export interface CommunicationChannel {
   name: string;
   type: 'direct' | 'group' | 'bot';
   participants: string[];
+  participantNames?: { [userId: string]: string };
+  participantAvatars?: { [userId: string]: string };
   lastMessageContent?: string;
   lastMessageTimestamp?: Timestamp;
   unreadCounts?: { [userId: string]: number };

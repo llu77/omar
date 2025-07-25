@@ -4,20 +4,29 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
+import { useCollection } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Send, Video, Paperclip, Phone, Search, Archive, UserPlus, Bot, MessageSquare, Loader2, PlusCircle } from 'lucide-react';
+import { Send, Video, Paperclip, Phone, UserPlus, Bot, MessageSquare, Loader2, PlusCircle, Search } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import type { CommunicationChannel, Message as MessageType } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { User } from '@/types';
 
 // ======================= COMPONENT: ChannelListItem =======================
 
@@ -76,6 +85,7 @@ const MessageBubble = ({ message, isOwnMessage }: MessageBubbleProps) => {
      <div className={`flex items-end gap-2 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
       {!isOwnMessage && (
         <Avatar className="h-8 w-8">
+           <AvatarImage src={message.senderAvatarUrl || ''} alt={message.senderName?.[0] || 'U'} />
           <AvatarFallback>{message.senderName?.[0] || 'U'}</AvatarFallback>
         </Avatar>
       )}
@@ -106,15 +116,20 @@ export default function CommunicationPage() {
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+  const [isNewUserModalOpen, setIsNewUserModalOpen] = useState(false);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // --- Firestore Hooks ---
   const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid), orderBy('lastMessageTimestamp', 'desc')) : null;
-  const [channelsSnapshot, channelsLoading, channelsError] = useCollection(channelsQuery);
+  const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
 
   const messagesQuery = activeChannelId ? query(collection(db, 'channels', activeChannelId, 'messages'), orderBy('timestamp', 'asc')) : null;
-  const [messagesSnapshot, messagesLoading, messagesError] = useCollection(messagesQuery);
+  const [messagesSnapshot, messagesLoading] = useCollection(messagesQuery);
 
   const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
 
@@ -126,14 +141,12 @@ export default function CommunicationPage() {
   }, [user, loading, router]);
   
   useEffect(() => {
-    // Automatically select the first channel if none is active
     if (!activeChannelId && channels.length > 0) {
       setActiveChannelId(channels[0].id);
     }
   }, [channels, activeChannelId]);
 
   useEffect(() => {
-    // Auto-scroll to the bottom of the chat view when new messages arrive
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (viewport) {
@@ -149,13 +162,29 @@ export default function CommunicationPage() {
 
     setIsSending(true);
     try {
-      const messagesColRef = collection(db, 'channels', activeChannelId, 'messages');
-      await addDoc(messagesColRef, {
+      const channelRef = doc(db, 'channels', activeChannelId);
+      const messagesColRef = collection(channelRef, 'messages');
+      
+      const batch = writeBatch(db);
+
+      // Add new message
+      const messageDocRef = doc(messagesColRef);
+      batch.set(messageDocRef, {
         content: messageContent,
         senderId: user.uid,
         senderName: user.displayName || user.email,
+        senderAvatarUrl: user.photoURL || '',
         timestamp: serverTimestamp(),
       });
+
+      // Update channel's last message
+      batch.update(channelRef, {
+        lastMessageContent: messageContent,
+        lastMessageTimestamp: serverTimestamp()
+      });
+
+      await batch.commit();
+
       setMessageContent('');
     } catch (error) {
       console.error("Error sending message: ", error);
@@ -169,35 +198,108 @@ export default function CommunicationPage() {
     }
   };
 
-  const seedData = async () => {
-    if (!user) return;
-    toast({ title: 'جاري إضافة البيانات التجريبية...' });
-    const channelsCol = collection(db, 'channels');
-    const existingBotChannelQuery = query(channelsCol, where('type', '==', 'bot'), where('participants', 'array-contains', user.uid));
-    const existingBotChannels = await getDocs(existingBotChannelQuery);
-
-    if (!existingBotChannels.empty) {
-      toast({ variant: 'destructive', title: 'بيانات موجودة', description: 'المحادثات التجريبية موجودة بالفعل.' });
-      return;
+  const handleSearch = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!searchEmail.trim() || !user) return;
+    setIsSearching(true);
+    setSearchResults([]);
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", searchEmail.trim()));
+      const querySnapshot = await getDocs(q);
+      const results: User[] = [];
+      querySnapshot.forEach((doc) => {
+        // Exclude current user from search results
+        if (doc.id !== user.uid) {
+          results.push({ id: doc.id, ...doc.data() } as User);
+        }
+      });
+      setSearchResults(results);
+      if (results.length === 0) {
+        toast({
+          title: "لا توجد نتائج",
+          description: "لم يتم العثور على مستخدم بهذا البريد الإلكتروني.",
+        });
+      }
+    } catch (error) {
+      console.error("Error searching users:", error);
+      toast({ variant: 'destructive', title: 'خطأ بالبحث', description: 'حدث خطأ أثناء البحث عن المستخدم.'});
+    } finally {
+      setIsSearching(false);
     }
-    
-    // Create bot channel
-    await addDoc(channelsCol, {
-      name: 'مساعد وَصّل الذكي',
-      type: 'bot',
-      participants: [user.uid, 'wassel_ai_bot'],
-      lastMessageContent: 'أهلاً بك! كيف يمكنني مساعدتك اليوم؟',
-      lastMessageTimestamp: serverTimestamp(),
-      unreadCounts: { [user.uid]: 1 },
-      createdAt: serverTimestamp(),
-      avatarUrl: '/bot-avatar.png'
-    });
+  };
 
-    toast({ title: 'نجاح', description: 'تمت إضافة المحادثات التجريبية.' });
+  const handleCreateChannel = async (otherUser: User) => {
+    if (!user) return;
+    setIsCreatingChannel(true);
+    try {
+      // Check if a DM channel already exists
+      const channelsRef = collection(db, 'channels');
+      const q = query(channelsRef, 
+        where('type', '==', 'direct'),
+        where('participants', 'in', [[user.uid, otherUser.id], [otherUser.id, user.uid]])
+      );
+
+      const existingChannels = await getDocs(q);
+
+      if (!existingChannels.empty) {
+        // Channel already exists, just open it
+        const channelId = existingChannels.docs[0].id;
+        setActiveChannelId(channelId);
+        toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
+      } else {
+        // Create a new channel
+        const newChannelData = {
+          name: otherUser.name,
+          type: 'direct',
+          participants: [user.uid, otherUser.id],
+          participantNames: {
+            [user.uid]: user.displayName || user.email,
+            [otherUser.id]: otherUser.name
+          },
+          participantAvatars: {
+            [user.uid]: user.photoURL || '',
+            [otherUser.id]: otherUser.photoURL || ''
+          },
+          lastMessageContent: `بدأت محادثة مع ${otherUser.name}`,
+          lastMessageTimestamp: serverTimestamp(),
+          unreadCounts: { [user.uid]: 0, [otherUser.id]: 1 },
+          createdAt: serverTimestamp(),
+        };
+        const newChannelRef = await addDoc(channelsRef, newChannelData);
+        setActiveChannelId(newChannelRef.id);
+        toast({ title: "تم إنشاء المحادثة", description: `يمكنك الآن التواصل مع ${otherUser.name}.` });
+      }
+      setIsNewUserModalOpen(false);
+      setSearchEmail('');
+      setSearchResults([]);
+
+    } catch (error) {
+      console.error("Error creating channel:", error);
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة.' });
+    } finally {
+      setIsCreatingChannel(false);
+    }
+  }
+
+  // --- Render Logic ---
+  const activeChannelData = channels.find(c => c.id === activeChannelId);
+  
+  const getActiveChannelName = () => {
+    if (!activeChannelData || !user) return '...';
+    if (activeChannelData.type === 'bot' || activeChannelData.type === 'group') return activeChannelData.name;
+    // For direct messages, find the other participant's name
+    const otherParticipantId = activeChannelData.participants.find(p => p !== user.uid);
+    return activeChannelData.participantNames?.[otherParticipantId || ''] || activeChannelData.name;
   };
   
-  // --- Render Logic ---
-  const activeChannel = channels.find(c => c.id === activeChannelId);
+  const getActiveChannelAvatar = () => {
+    if (!activeChannelData || !user) return '';
+    if (activeChannelData.type === 'bot' || activeChannelData.type === 'group') return activeChannelData.avatarUrl;
+    const otherParticipantId = activeChannelData.participants.find(p => p !== user.uid);
+    return activeChannelData.participantAvatars?.[otherParticipantId || ''] || '';
+  }
+
 
   if (loading) {
      return <div className="p-6"><Skeleton className="h-[70vh] w-full" /></div>;
@@ -209,52 +311,96 @@ export default function CommunicationPage() {
     <div className="h-[calc(100vh-10rem)] flex gap-6 animate-in fade-in-50">
       {/* Channels List */}
       <Card className="w-1/3 flex-shrink-0 flex flex-col">
-        <CardHeader className="p-4 border-b flex-row justify-between items-center">
-            <CardTitle className="text-lg">المحادثات</CardTitle>
-            <Button size="sm" variant="outline" onClick={seedData}><PlusCircle className="ml-2 h-4 w-4"/>بيانات تجريبية</Button>
+        <CardHeader className="p-4 border-b">
+            <Dialog open={isNewUserModalOpen} onOpenChange={setIsNewUserModalOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full"><PlusCircle className="ml-2 h-4 w-4"/>محادثة جديدة</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>بدء محادثة جديدة</DialogTitle>
+                  <DialogDescription>
+                    ابحث عن مستخدم عن طريق البريد الإلكتروني لبدء محادثة آمنة.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSearch} className="flex gap-2">
+                  <Input 
+                    placeholder="البريد الإلكتروني للمستخدم"
+                    value={searchEmail}
+                    onChange={(e) => setSearchEmail(e.target.value)}
+                    disabled={isSearching}
+                  />
+                  <Button type="submit" disabled={isSearching || !searchEmail.trim()}>
+                    {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  </Button>
+                </form>
+                <div className="mt-4 space-y-2">
+                  {isSearching && <p>جاري البحث...</p>}
+                  {searchResults.map(foundUser => (
+                    <div key={foundUser.id} className="flex items-center justify-between p-2 rounded-md border">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={foundUser.photoURL || ''} alt={foundUser.name} />
+                          <AvatarFallback>{foundUser.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{foundUser.name}</p>
+                          <p className="text-sm text-muted-foreground">{foundUser.email}</p>
+                        </div>
+                      </div>
+                      <Button size="sm" onClick={() => handleCreateChannel(foundUser)} disabled={isCreatingChannel}>
+                        {isCreatingChannel ? <Loader2 className="h-4 w-4 animate-spin"/> : 'تواصل'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
         </CardHeader>
         <ScrollArea className="flex-1">
           {channelsLoading && <div className="p-4 space-y-3"><Skeleton className="h-16 w-full"/><Skeleton className="h-16 w-full"/></div>}
-          {!channelsLoading && channelsError && <p className="p-4 text-destructive">خطأ في تحميل المحادثات.</p>}
           {!channelsLoading && channels.length === 0 && (
             <div className="p-6 text-center text-muted-foreground">
               <MessageSquare className="mx-auto h-12 w-12" />
               <p className="mt-4">لا توجد محادثات.</p>
-              <p className="text-sm">ابدأ بإضافة بيانات تجريبية.</p>
+              <p className="text-sm">ابدأ محادثة جديدة.</p>
             </div>
           )}
           <div className="p-2">
-            {channels.map(channel => (
+            {channels.map(channel => {
+               const otherParticipantId = channel.participants.find(p => p !== user.uid);
+               const name = (channel.type === 'direct') 
+                ? channel.participantNames?.[otherParticipantId || ''] || channel.name
+                : channel.name;
+               const avatar = (channel.type === 'direct')
+                ? channel.participantAvatars?.[otherParticipantId || '']
+                : channel.avatarUrl;
+
+              return (
               <ChannelListItem 
                 key={channel.id} 
-                channel={channel}
+                channel={{...channel, name, avatarUrl: avatar}}
                 isActive={activeChannelId === channel.id}
                 onClick={() => setActiveChannelId(channel.id)}
                 currentUserId={user.uid}
               />
-            ))}
+            )})}
           </div>
         </ScrollArea>
-        <div className="p-2 border-t">
-          <Button variant="outline" className="w-full">
-            <Archive className="ml-2 h-4 w-4" />
-            الأرشيف
-          </Button>
-        </div>
       </Card>
 
       {/* Active Chat Window */}
       <Card className="flex-1 flex flex-col">
-         {activeChannel ? (
+         {activeChannelData ? (
             <>
               <CardHeader className="flex flex-row items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                      <AvatarImage src={activeChannel.avatarUrl || ''} alt={activeChannel.name} />
-                      <AvatarFallback>{activeChannel.name.substring(0, 2)}</AvatarFallback>
+                      <AvatarImage src={getActiveChannelAvatar()} alt={getActiveChannelName()} />
+                      <AvatarFallback>{getActiveChannelName().substring(0, 2)}</AvatarFallback>
                     </Avatar>
                   <div>
-                    <CardTitle className="text-lg">{activeChannel.name}</CardTitle>
+                    <CardTitle className="text-lg">{getActiveChannelName()}</CardTitle>
                     <p className="text-sm text-muted-foreground">متصل الآن</p>
                   </div>
                 </div>
@@ -309,4 +455,3 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
