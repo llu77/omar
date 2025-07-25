@@ -239,7 +239,9 @@ export default function CommunicationPage() {
     setSearchResults([]);
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("email", "==", searchEmail.trim()));
+      // IMPORTANT: Firestore queries are case-sensitive. Searching by email might
+      // require storing emails in a consistent case (e.g., lowercase) during registration.
+      const q = query(usersRef, where("email", "==", searchEmail.trim().toLowerCase()));
       const querySnapshot = await getDocs(q);
       const results: User[] = [];
       querySnapshot.forEach((doc) => {
@@ -268,18 +270,31 @@ export default function CommunicationPage() {
     setIsCreatingChannel(true);
     try {
       // Check if a DM channel already exists
+      // IMPORTANT: This query requires a composite index in Firestore.
+      // If you see an error in the browser console mentioning an index,
+      // it will provide a direct link to create it in the Firebase console.
       const channelsRef = collection(db, 'channels');
       const q = query(channelsRef, 
         where('type', '==', 'direct'),
-        where('participants', 'in', [[user.uid, otherUser.id], [otherUser.id, user.uid]])
+        where('participants', 'array-contains-any', [user.uid, otherUser.id])
       );
 
-      const existingChannels = await getDocs(q);
+      const existingChannelsSnapshot = await getDocs(q);
+      let existingChannel = null;
 
-      if (!existingChannels.empty) {
+      // Since array-contains-any can return channels where only one participant matches,
+      // we need to filter client-side to find the exact match.
+      existingChannelsSnapshot.forEach(doc => {
+        const channel = doc.data() as CommunicationChannel;
+        const p = channel.participants;
+        if (p.includes(user.uid) && p.includes(otherUser.id)) {
+            existingChannel = { id: doc.id, ...channel };
+        }
+      });
+
+      if (existingChannel) {
         // Channel already exists, just open it
-        const channelId = existingChannels.docs[0].id;
-        setActiveChannelId(channelId);
+        setActiveChannelId(existingChannel.id);
         toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
       } else {
         // Create a new channel
@@ -287,6 +302,14 @@ export default function CommunicationPage() {
           name: otherUser.name,
           type: 'direct',
           participants: [user.uid, otherUser.id],
+          participantNames: {
+            [user.uid]: user.displayName,
+            [otherUser.id]: otherUser.name,
+          },
+          participantAvatars: {
+             [user.uid]: user.photoURL || '',
+             [otherUser.id]: otherUser.photoURL || '',
+          },
           lastMessageContent: `بدأت محادثة مع ${otherUser.name}`,
           lastMessageTimestamp: serverTimestamp(),
           unreadCounts: { [user.uid]: 0, [otherUser.id]: 0 },
