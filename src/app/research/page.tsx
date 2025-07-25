@@ -70,6 +70,7 @@ export default function ResearchPage() {
                     </Avatar>
                   )}
                   <div
+                    dir="auto"
                     className={`max-w-xs md:max-w-md lg:max-w-lg rounded-xl px-4 py-3 prose prose-sm dark:prose-invert ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'

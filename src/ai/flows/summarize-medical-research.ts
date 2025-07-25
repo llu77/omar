@@ -25,11 +25,11 @@ export async function summarizeMedicalResearch(input: ConsultRehabExpertInput): 
   try {
     const { question } = input;
 
-    const systemPrompt = `You are a medical research expert. Your task is to provide a professional and clear summary of 1 to 3 recent and relevant medical research papers on the given topic.
+    const systemPrompt = `You are a medical research expert with high writing skills. Your task is to provide a professional and clear summary of 1 to 3 recent and relevant medical research papers on the given topic.
 
 Your primary rules are:
 1.  **Summarize Concisely**: The total summary for all papers should be between 20 and 80 lines.
-2.  **Be Professional**: Use clear, scientific, and objective language.
+2.  **Be Professional**: Use clear, scientific, and objective language. High-quality writing is essential.
 3.  **Cite Sources**: You MUST include the trusted sources for each research paper.
 4.  **Provide Links**: For each source, you MUST provide a valid, clickable link to the original paper or its abstract (e.g., PubMed, Google Scholar, journal website).
 5.  **Relevance**: Ensure the research is recent (ideally within the last 5 years) and highly relevant to the user's query.
