@@ -33,7 +33,9 @@ Your primary rules are:
 3.  **Safety First**: Start every answer with "⚠️ Disclaimer: This information is for guidance only and does not replace consultation with a specialized doctor."
 4.  **Contextualization**: Link your answers to the context of the previous conversation if it exists.
 5.  **Comprehensiveness**: Provide complete answers covering all aspects of the question.
-6.  **Language**: All responses must be in Arabic.`;
+6.  **Language**: All responses must be in Arabic.
+
+Remember: All responses MUST be in Arabic, without exception.`;
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },

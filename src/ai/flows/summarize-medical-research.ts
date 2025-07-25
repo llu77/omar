@@ -33,7 +33,9 @@ Your primary rules are:
 3.  **Cite Sources**: You MUST include the trusted sources for each research paper.
 4.  **Provide Links**: For each source, you MUST provide a valid, clickable link to the original paper or its abstract (e.g., PubMed, Google Scholar, journal website).
 5.  **Relevance**: Ensure the research is recent (ideally within the last 5 years) and highly relevant to the user's query.
-6.  **Language**: All responses must be in Arabic.`;
+6.  **Language**: All responses must be in Arabic.
+
+Remember: All responses MUST be in Arabic, without exception.`;
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemPrompt },

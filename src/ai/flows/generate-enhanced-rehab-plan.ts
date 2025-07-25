@@ -49,7 +49,9 @@ Your response must be in a valid JSON format that strictly follows this Zod sche
 ${JSON.stringify(GenerateEnhancedRehabPlanOutputSchema.shape, null, 2)}
 
 The rehabPlan should be detailed, structured into a 12-week program, and formatted using Markdown for clarity.
-All text must be in Arabic.`;
+All text must be in Arabic.
+
+Remember: All responses MUST be in Arabic, without exception.`;
 
     const response = await openai.chat.completions.create({
       model: process.env.DEFAULT_MODEL || 'gpt-4-turbo',
