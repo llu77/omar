@@ -44,80 +44,82 @@ export default function RetrievePage() {
   const [user, loading] = useAuthState(auth);
 
   useEffect(() => {
-    if (loading || !user) {
+    if (loading) return;
+    if (!user) {
+      router.push('/login');
       return;
     }
-    loadCloudReports(user.uid);
+    loadAllReports(user.uid);
   }, [user, loading]);
   
-  useEffect(() => {
-    // Only load local reports after cloud reports are done and on the client side
-    if (!isLoadingReports) {
-      loadLocalReports();
-    }
-  }, [isLoadingReports]);
 
-  const loadCloudReports = async (userId: string) => {
+  const loadAllReports = async (userId: string) => {
     setIsLoadingReports(true);
     setError(null);
-    const cloudReports: SavedReport[] = [];
+  
     try {
-      const reportsCollectionRef = collection(db, 'users', userId, 'reports');
-      const q = query(reportsCollectionRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      querySnapshot.forEach((doc) => {
+      // Step 1: Fetch cloud reports
+      const cloudReportsPromise = getDocs(query(collection(db, 'users', userId, 'reports'), orderBy('createdAt', 'desc')));
+      
+      // Step 2: Fetch local reports
+      const localReports: SavedReport[] = [];
+      if (typeof window !== 'undefined') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('report-')) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              if (data.fileNumber && data.name) {
+                const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
+                localReports.push({
+                  fileNumber: data.fileNumber,
+                  name: data.name,
+                  createdAt: createdAt,
+                  source: 'local',
+                });
+              }
+            } catch (e) {
+              console.error(`Error parsing local report from key ${key}:`, e);
+            }
+          }
+        }
+      }
+      
+      // Step 3: Wait for cloud reports and process
+      const cloudSnapshot = await cloudReportsPromise;
+      const cloudReportsMap = new Map<string, SavedReport>();
+      cloudSnapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
-        cloudReports.push({
+        cloudReportsMap.set(doc.id, {
           fileNumber: doc.id,
           name: data.name,
           createdAt: createdAt,
           source: 'cloud',
         });
       });
-      setAllReports(cloudReports);
+      
+      // Step 4: Merge local reports, giving priority to cloud versions
+      const localReportsMap = new Map(localReports.map(r => [r.fileNumber, r]));
+      
+      localReportsMap.forEach((value, key) => {
+        if (!cloudReportsMap.has(key)) {
+          cloudReportsMap.set(key, value);
+        }
+      });
+      
+      // Step 5: Sort and set the final list
+      const combinedReports = Array.from(cloudReportsMap.values());
+      combinedReports.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      
+      setAllReports(combinedReports);
+
     } catch (firebaseError: any) {
-      console.error('Error loading cloud reports:', firebaseError);
-      setError("فشل تحميل التقارير المحفوظة في السحابة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
+      console.error('Error loading reports:', firebaseError);
+      setError("فشل تحميل التقارير المحفوظة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
     } finally {
       setIsLoadingReports(false);
     }
-  };
-
-  const loadLocalReports = () => {
-    if (typeof window === 'undefined') return; // Ensure this runs only on the client
-
-    const localReportsMap = new Map<string, SavedReport>();
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('report-')) {
-          const data = JSON.parse(localStorage.getItem(key) || '{}');
-          if (data.fileNumber && data.name) {
-             const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
-            localReportsMap.set(data.fileNumber, {
-              fileNumber: data.fileNumber,
-              name: data.name,
-              createdAt: createdAt,
-              source: 'local',
-            });
-          }
-        }
-      }
-    } catch (e) { 
-      console.error('Error parsing local reports:', e);
-      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل قراءة بعض التقارير المحلية.' });
-    }
-
-    setAllReports(prevReports => {
-        const combinedReportsMap = new Map(prevReports.map(r => [r.fileNumber, r]));
-        localReportsMap.forEach((value, key) => {
-            if (!combinedReportsMap.has(key)) {
-                combinedReportsMap.set(key, value);
-            }
-        });
-        return Array.from(combinedReportsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    });
   };
 
 
@@ -146,7 +148,7 @@ export default function RetrievePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in-50">
       <Card className="shadow-lg bg-card/80 backdrop-blur-sm border-primary/10">
         <CardHeader>
           <CardTitle className="text-3xl font-headline flex items-center gap-3">
@@ -182,7 +184,7 @@ export default function RetrievePage() {
           <Separator className="my-6" />
 
           <div>
-            <h3 className="text-lg font-semibold mb-4">التقارير الأخيرة</h3>
+            <h3 className="text-lg font-semibold mb-4">التقارير الأخيرة المتاحة</h3>
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <ServerCrash className="h-4 w-4"/>
@@ -203,7 +205,7 @@ export default function RetrievePage() {
                 {allReports.map((report) => (
                   <Card 
                     key={report.fileNumber} 
-                    className="cursor-pointer hover:bg-secondary/50 transition-colors animate-in fade-in-50"
+                    className="cursor-pointer hover:bg-secondary/50 transition-colors"
                     onClick={() => handleQuickAccess(report.fileNumber)}
                   >
                     <CardContent className="flex items-center justify-between p-4">
@@ -217,7 +219,7 @@ export default function RetrievePage() {
                         </div>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {formatDistanceToNow(report.createdAt, { addSuffix: true, locale: arSA })}
+                        {report.createdAt.getFullYear() > 2000 ? formatDistanceToNow(report.createdAt, { addSuffix: true, locale: arSA }) : 'بدون تاريخ'}
                       </div>
                     </CardContent>
                   </Card>
