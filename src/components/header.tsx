@@ -34,6 +34,7 @@ import {
   MessageSquare,
   Target
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const UserNavigation = [
   { name: "لوحة التحكم", href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -53,6 +54,7 @@ export default function Header() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
+  // useEffect runs only on the client, so we can safely set mounted to true
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -80,6 +82,69 @@ export default function Header() {
     }
     return user?.email?.[0].toUpperCase() || 'U';
   };
+  
+  const renderAuthSection = () => {
+    // On the server or before hydration is complete, render a placeholder
+    if (!mounted || loading) {
+       return (
+        <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      );
+    }
+
+    if (user) {
+      return (
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                <Avatar className="h-10 w-10 border-2 border-primary/50">
+                  <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                    {getUserInitials()}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user.displayName || 'المستخدم'}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive-foreground focus:bg-destructive cursor-pointer">
+                <LogOut className="ml-2 h-4 w-4"/>تسجيل الخروج
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </>
+      );
+    }
+    
+    return (
+      <div className="flex items-center gap-2">
+        <Button asChild variant="ghost">
+          <Link href="/login">تسجيل الدخول</Link>
+        </Button>
+        <Button asChild>
+          <Link href="/register">إنشاء حساب</Link>
+        </Button>
+      </div>
+    );
+  };
+
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -116,7 +181,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
-            {mounted && (
+             {mounted ? (
               <Button
                 variant="ghost"
                 size="icon"
@@ -126,60 +191,13 @@ export default function Header() {
                 <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
                 <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
               </Button>
-            )}
-
-            {loading ? (
-                <div className="h-6 w-6 animate-spin text-primary"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></div>
-            ) : user ? (
-              <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                      <Avatar className="h-10 w-10 border-2 border-primary/50">
-                        <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                          {getUserInitials()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
-                    <DropdownMenuLabel>
-                      <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{user.displayName || 'المستخدم'}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                      </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive-foreground focus:bg-destructive cursor-pointer">
-                      <LogOut className="ml-2 h-4 w-4"/>تسجيل الخروج
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                >
-                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </Button>
-              </>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button asChild variant="ghost">
-                  <Link href="/login">تسجيل الدخول</Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/register">إنشاء حساب</Link>
-                </Button>
-              </div>
-            )}
+            ) : <Skeleton className="h-10 w-10"/> }
+            
+            {renderAuthSection()}
           </div>
         </div>
 
-        {user && mobileMenuOpen && (
+        {mounted && user && mobileMenuOpen && (
           <div className="md:hidden py-4 space-y-1 border-t">
             {UserNavigation.map((item) => (
               <Link
