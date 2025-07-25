@@ -4,7 +4,7 @@
 import { useRef, useEffect, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -75,8 +75,8 @@ export default function ResearchPage() {
 
       {/* Chat Area */}
       <Card className="flex-1 flex flex-col shadow-lg overflow-hidden">
-        <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea className="flex-1" ref={scrollAreaRef}>
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-full" ref={scrollAreaRef}>
             <div className="p-6 space-y-6">
               {messages.length === 0 && !isLoading && (
                 <div className="text-center text-muted-foreground p-8 space-y-4">
@@ -113,7 +113,7 @@ export default function ResearchPage() {
                     }`}
                   >
                     {/* Render message content with markdown interpretation */}
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2" dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2" dangerouslySetInnerHTML={{ __html: message.content.replace(/\\n/g, '<br />') }} />
                   </div>
                   {message.role === 'user' && (
                     <Avatar className="h-9 w-9">
@@ -135,11 +135,14 @@ export default function ResearchPage() {
               )}
             </div>
           </ScrollArea>
-          
-          {/* Input Form */}
-          <div className="p-4 border-t bg-background/80 backdrop-blur-sm">
+        </CardContent>
+      </Card>
+      
+      {/* Input Form */}
+      <div className="mt-4">
+        <div className="p-4 border-t bg-background/80 backdrop-blur-sm rounded-lg border">
             <form onSubmit={handleFormSubmit} className="flex items-start gap-2">
-              <Textarea
+            <Textarea
                 value={input}
                 onChange={handleInputChange}
                 placeholder="اكتب موضوع البحث هنا..."
@@ -152,19 +155,18 @@ export default function ResearchPage() {
                         if(input.trim()) handleSubmit(e as any);
                     }
                 }}
-              />
-              <Button type="submit" disabled={isLoading || !input.trim()} size="lg">
+            />
+            <Button type="submit" disabled={isLoading || !input.trim()} size="lg">
                 {isLoading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <Send className="h-5 w-5" />
+                <Send className="h-5 w-5" />
                 )}
                 <span className="sr-only">إرسال</span>
-              </Button>
+            </Button>
             </form>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
