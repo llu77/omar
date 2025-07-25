@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -19,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
 import { AlertCircle, Check, Loader2, Printer, UploadCloud } from "lucide-react";
 
-type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput;
+type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput & { ownerId?: string };
 
 type PageState = 'loading' | 'generating' | 'displaying' | 'error';
 
@@ -51,24 +52,23 @@ export default function ReportPage() {
     setIsSaved(false);
   
     try {
-      // 1. Try to fetch from Firestore first (from the new subcollection path)
-      const reportDocRef = doc(db, "users", user.uid, "reports", fileNumber);
+      // 1. Try to fetch from the global "reports" collection
+      const reportDocRef = doc(db, "reports", fileNumber);
       const reportDoc = await getDoc(reportDocRef);
   
       if (reportDoc.exists()) {
         const data = reportDoc.data();
-        // Convert Firestore Timestamp to JS Date object
         if (data.createdAt && data.createdAt instanceof Timestamp) {
             data.createdAt = data.createdAt.toDate();
         }
         setReportData(data as ReportData);
         setIsSaved(true);
         setPageState('displaying');
-        toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المحفوظ من السحابة." });
+        toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المشترك من السحابة." });
         return;
       }
       
-      // 2. If not in Firestore, check localStorage for patient data
+      // 2. If not in Firestore, check localStorage for patient data to generate a new one
       const localDataString = localStorage.getItem(`report-${fileNumber}`);
       if (!localDataString) {
         throw new Error("لم يتم العثور على بيانات التقييم لهذا الملف. يرجى البدء من جديد.");
@@ -121,20 +121,24 @@ export default function ReportPage() {
 
     startSavingTransition(async () => {
       try {
-        // Use the new subcollection path for saving
-        const reportDocRef = doc(db, "users", user.uid, "reports", reportData.fileNumber);
+        // Save to the global "reports" collection
+        const reportDocRef = doc(db, "reports", reportData.fileNumber);
         
-        const dataToSave = {
+        const dataToSave: ReportData = {
           ...reportData,
-          createdAt: Timestamp.now(),
+          ownerId: user.uid, // Add owner information
+          createdAt: Timestamp.now() as any, // Firestore handles server timestamp
         };
 
         await setDoc(reportDocRef, dataToSave);
 
+        // Optionally remove from local storage after successful cloud save
+        localStorage.removeItem(`report-${reportData.fileNumber}`);
+
         setIsSaved(true);
         toast({
           title: "تم الحفظ بنجاح",
-          description: "تم حفظ التقرير في حسابك السحابي.",
+          description: "تم حفظ التقرير في السحابة ومشاركته.",
         });
       } catch (error) {
         console.error("Error saving to cloud:", error);
@@ -194,7 +198,7 @@ export default function ReportPage() {
                  {isSaved ? (
                   <Button disabled variant="secondary">
                      <Check className="ml-2 h-4 w-4"/>
-                    تم الحفظ بنجاح
+                    محفوظ في السحابة
                   </Button>
                 ) : (
                   <Button onClick={handleSaveToCloud} disabled={isSaving}>
@@ -206,7 +210,7 @@ export default function ReportPage() {
                     ) : (
                       <>
                         <UploadCloud className="ml-2 h-4 w-4"/>
-                        الحفظ في السحابة
+                        حفظ ومشاركة
                       </>
                     )}
                   </Button>

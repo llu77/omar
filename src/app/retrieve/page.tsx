@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useTransition, useMemo } from "react";
@@ -9,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { db, auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
-import { collection, query, getDocs, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, Timestamp, orderBy, where, limit } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -49,17 +50,17 @@ export default function RetrievePage() {
       router.push('/login');
       return;
     }
-    loadAllReports(user.uid);
+    loadAllReports();
   }, [user, loading]);
   
 
-  const loadAllReports = async (userId: string) => {
+  const loadAllReports = async () => {
     setIsLoadingReports(true);
     setError(null);
   
     try {
-      // Step 1: Fetch cloud reports
-      const cloudReportsPromise = getDocs(query(collection(db, 'users', userId, 'reports'), orderBy('createdAt', 'desc')));
+      // Step 1: Fetch cloud reports from the global 'reports' collection
+      const cloudReportsPromise = getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc'), limit(50)));
       
       // Step 2: Fetch local reports
       const localReports: SavedReport[] = [];
@@ -184,7 +185,7 @@ export default function RetrievePage() {
                 disabled={isSearching}
               />
               <Button type="submit" size="lg" disabled={isSearching}>
-                {isSearching ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="w-5 w-5"/>}
+                {isSearching ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="w-5 h-5"/>}
               </Button>
             </div>
           </form>

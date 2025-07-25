@@ -1,32 +1,25 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Allow users to manage their own user document.
+    // Allow users to manage their own user document
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-    }
-    
-    // Allow users to manage reports within their own subcollection.
-    match /users/{userId}/reports/{reportId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth.uid == userId;
     }
 
-    // Allow any authenticated user to read/write to the shared 'goals' collection.
-    // This allows for real-time collaboration between different users.
+    // Allow any authenticated user to read/write to the shared collections
     match /goals/{goalId} {
       allow read, write: if request.auth != null;
     }
 
-    // Allow authenticated users who are participants in a channel to read/write.
-    match /channels/{channelId} {
-      allow read, write: if request.auth != null && resource.data.participants.hasAny([request.auth.uid]);
-      
-      // Allow participants to read/write messages within that channel.
-      match /messages/{messageId} {
-         allow read, write: if request.auth != null && get(/databases/$(database)/documents/channels/$(channelId)).data.participants.hasAny([request.auth.uid]);
-      }
+    match /channels/{channelId}/{message=**} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Allow any authenticated user to read/write to the shared reports collection
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null;
     }
   }
 }
