@@ -24,9 +24,9 @@ import {
   FileText, Image as ImageIcon, Mic, Volume2, Translate, Star,
   MoreHorizontal, Download, Eye, Lock, Unlock, Users, Calendar,
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
-  FileVideo, FileAudio2, Copy, Reply, Forward,
+  File as FileIcon, FileVideo2, FileAudio2, Copy, Reply, Forward,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
-  Maximize2, Minimize2, VolumeOff, UserCheck, Activity, File
+  Maximize2, Minimize2, VolumeOff, UserCheck, Activity
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
-  DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel
+  DropdownMenuTrigger, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
@@ -154,10 +154,10 @@ const formatFileSize = (bytes: number): string => {
 
 const getFileIcon = (fileType: string) => {
   if (fileType.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
-  if (fileType.startsWith('video/')) return <FileVideo className="h-4 w-4" />;
+  if (fileType.startsWith('video/')) return <FileVideo2 className="h-4 w-4" />;
   if (fileType.startsWith('audio/')) return <FileAudio2 className="h-4 w-4" />;
   if (fileType === 'application/pdf') return <FileText className="h-4 w-4" />;
-  return <File className="h-4 w-4" />;
+  return <FileIcon className="h-4 w-4" />;
 };
 
 const getMedicalPriorityColor = (priority: string) => {
@@ -201,11 +201,12 @@ const EnhancedChannelListItem = ({
   useEffect(() => {
     if (!otherParticipantId) return;
     
-    const presenceRef = doc(db, 'presence', otherParticipantId);
+    const presenceRef = doc(db, 'users', otherParticipantId);
     const unsubscribe = onSnapshot(presenceRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         setIsOnline(data.status === 'online' && 
+          data.lastSeen &&
           (new Date().getTime() - data.lastSeen?.toDate().getTime()) < 60000);
       }
     });
@@ -340,7 +341,7 @@ const EnhancedChannelListItem = ({
         </div>
         
         {/* Department & Tags */}
-        {(channel.department || channel.tags?.length) && (
+        {(channel.department || (channel.tags && channel.tags.length > 0)) && (
           <div className="flex gap-1 mt-1">
             {channel.department && (
               <Badge variant="secondary" className="text-xs">
@@ -369,20 +370,20 @@ const EnhancedChannelListItem = ({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => onPin(channel.id)}>
-            <Star className="h-4 w-4 mr-2" />
+            <Star className="mr-2 h-4 w-4" />
             {channel.isPinned ? 'إلغاء التثبيت' : 'تثبيت'}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onMute(channel.id)}>
-            {channel.isMuted ? <Bell className="h-4 w-4 mr-2" /> : <BellOff className="h-4 w-4 mr-2" />}
+            {channel.isMuted ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
             {channel.isMuted ? 'إلغاء كتم الصوت' : 'كتم الصوت'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => onArchive(channel.id)}>
-            <Archive className="h-4 w-4 mr-2" />
+            <Archive className="mr-2 h-4 w-4" />
             أرشفة
           </DropdownMenuItem>
           <DropdownMenuItem className="text-destructive">
-            <Trash2 className="h-4 w-4 mr-2" />
+            <Trash2 className="mr-2 h-4 w-4" />
             حذف المحادثة
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -406,7 +407,6 @@ const EnhancedMessageBubble = ({
 }: EnhancedMessageBubbleProps) => {
   const [showActions, setShowActions] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [showFullContext, setShowFullContext] = useState(false);
 
   const handleTranslate = async (targetLang: string) => {
     setIsTranslating(true);
@@ -601,7 +601,7 @@ const EnhancedMessageBubble = ({
                   <Translate className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => handleTranslate('en')}>
                   English
                 </DropdownMenuItem>
@@ -859,7 +859,7 @@ const VideoCallInterface = ({
         
         {/* Screen Share Indicator */}
         {callState.isScreenSharing && (
-          <div className="absolute top-4 center bg-blue-600 text-white px-3 py-1 rounded-lg text-sm">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-lg text-sm">
             مشاركة الشاشة نشطة
           </div>
         )}
@@ -948,7 +948,8 @@ export default function EnhancedCommunicationPage() {
     collection(db, 'channels'), 
     where('participants', 'array-contains', user.uid)
   ) : null;
-  const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
+
+  const [channelsSnapshot, channelsLoading, channelsError] = useCollection(channelsQuery);
 
   const messagesQuery = activeChannelId ? query(
     collection(db, 'channels', activeChannelId, 'messages'), 
@@ -970,7 +971,7 @@ export default function EnhancedCommunicationPage() {
   const filteredChannels = allChannels.filter(channel => {
     switch (channelFilter) {
       case 'unread':
-        return channel.unreadCounts?.[user?.uid || ''] > 0;
+        return (channel.unreadCounts?.[user?.uid || ''] || 0) > 0;
       case 'pinned':
         return channel.isPinned;
       case 'archived':
@@ -994,9 +995,10 @@ export default function EnhancedCommunicationPage() {
         ...doc.data() 
       } as ExtendedChannel));
       
+      // Sort channels client-side
       channelsFromDb.sort((a, b) => {
-        const timeA = a.lastMessageTimestamp?.toMillis() || 0;
-        const timeB = b.lastMessageTimestamp?.toMillis() || 0;
+        const timeA = a.lastMessageTimestamp?.toDate()?.getTime() || 0;
+        const timeB = b.lastMessageTimestamp?.toDate()?.getTime() || 0;
         return timeB - timeA;
       });
 
@@ -1021,7 +1023,7 @@ export default function EnhancedCommunicationPage() {
 
   // Mark messages as read when channel is opened
   useEffect(() => {
-    if (activeChannelId && user && activeChannelData?.unreadCounts?.[user.uid] > 0) {
+    if (activeChannelId && user && (activeChannelData?.unreadCounts?.[user.uid] || 0) > 0) {
       const channelRef = doc(db, 'channels', activeChannelId);
       updateDoc(channelRef, {
         [`unreadCounts.${user.uid}`]: 0
@@ -1375,7 +1377,6 @@ export default function EnhancedCommunicationPage() {
   return (
     <>
       <div className="h-[calc(100vh-10rem)] flex gap-6 animate-in fade-in-50">
-        {/* Channels List */}
         <Card className="w-1/3 flex-shrink-0 flex flex-col">
           <CardHeader className="p-4 border-b space-y-4">
             <Dialog open={isNewUserModalOpen} onOpenChange={setIsNewUserModalOpen}>
@@ -1523,16 +1524,16 @@ export default function EnhancedCommunicationPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>
-                        <Info className="h-4 w-4 mr-2" />
+                        <Info className="mr-2 h-4 w-4" />
                         معلومات المحادثة
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        <Search className="h-4 w-4 mr-2" />
+                        <Search className="mr-2 h-4 w-4" />
                         البحث في الرسائل
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>
-                        <Settings className="h-4 w-4 mr-2" />
+                        <Settings className="mr-2 h-4 w-4" />
                         إعدادات المحادثة
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -1598,7 +1599,7 @@ export default function EnhancedCommunicationPage() {
                     size="sm"
                     onClick={() => setMessageType('text')}
                   >
-                    <MessageSquare className="h-4 w-4 mr-1" />
+                    <MessageSquare className="mr-1 h-4 w-4" />
                     رسالة عادية
                   </Button>
                   <Button
@@ -1607,7 +1608,7 @@ export default function EnhancedCommunicationPage() {
                     size="sm"
                     onClick={() => setMessageType('medical_report')}
                   >
-                    <Stethoscope className="h-4 w-4 mr-1" />
+                    <Stethoscope className="mr-1 h-4 w-4" />
                     تقرير طبي
                   </Button>
                 </div>
