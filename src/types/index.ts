@@ -31,6 +31,31 @@ export interface PatientDataForAI {
   fractures: string;
 }
 
+// ==================== New Feature Schemas ====================
+
+export interface DashboardData {
+  patientId: string;
+  unifiedView: object; // To be defined in detail later
+}
+
+export interface CommunicationChannel {
+  id: string;
+  type: 'direct' | 'group' | 'bot';
+  participants: string[];
+  lastMessage: object; // To be defined in detail later
+}
+
+export interface Goal {
+  id: string;
+  patientId: string;
+  title: string;
+  type: 'medical' | 'functional';
+  status: 'on_track' | 'needs_attention' | 'at_risk' | 'achieved';
+  progress: number;
+  team: string[];
+}
+
+
 // ==================== AI Flow Schemas ====================
 
 // Schemas for consult-rehab-expert flow

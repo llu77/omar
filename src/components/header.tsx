@@ -20,11 +20,27 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
-import { FilePlus2, History, Sun, Moon, LogOut, Menu, X, ChevronsRight, User as UserIcon, Stethoscope } from "lucide-react";
+import { 
+  FilePlus2, 
+  History, 
+  Sun, 
+  Moon, 
+  LogOut, 
+  Menu, 
+  X, 
+  User as UserIcon, 
+  Stethoscope,
+  LayoutDashboard,
+  MessageSquare,
+  Target
+} from "lucide-react";
 
 const UserNavigation = [
+  { name: "لوحة التحكم", href: "/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { name: "تقييم جديد", href: "/assessment", icon: <FilePlus2 className="h-4 w-4" /> },
   { name: "تقاريري", href: "/retrieve", icon: <History className="h-4 w-4" /> },
+  { name: "الأهداف", href: "/goals", icon: <Target className="h-4 w-4" /> },
+  { name: "التواصل", href: "/communication", icon: <MessageSquare className="h-4 w-4" /> },
   { name: "استشرني", href: "/consult", icon: <Stethoscope className="h-4 w-4" /> },
 ];
 
