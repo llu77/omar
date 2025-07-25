@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -6,15 +5,20 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, BarChart3, Users, FileText, Bell, Target } from 'lucide-react';
+import { AreaChart, BarChart3, Users, FileText, Bell, Target, TrendingUp, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { CommunicationChannel } from '@/types';
+import type { CommunicationChannel, Goal } from '@/types';
 
-// This is a placeholder for the advanced dashboard functionality.
-// The full implementation will require backend services and data aggregation.
+const statusMap = {
+  on_track: { text: 'في المسار الصحيح', icon: <TrendingUp className="h-4 w-4 text-green-600"/>, badge: 'outline', className: 'text-green-600 border-green-600' },
+  needs_attention: { text: 'يحتاج متابعة', icon: <Bell className="h-4 w-4 text-yellow-600"/>, badge: 'secondary', className: 'text-yellow-600 border-yellow-600' },
+  at_risk: { text: 'في خطر', icon: <TrendingUp className="h-4 w-4 text-red-600"/>, badge: 'destructive', className: 'text-red-600 border-red-600' },
+  achieved: { text: 'تم تحقيقه', icon: <CheckCircle className="h-4 w-4 text-blue-600"/>, badge: 'default', className: 'text-blue-600 border-blue-600' },
+};
+
 
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth);
@@ -23,11 +27,20 @@ export default function DashboardPage() {
   // Real-time query for channels to get unread counts
   const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid)) : null;
   const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
+
+  // Real-time query for recent goals
+  const goalsQuery = user ? query(collection(db, 'goals'), limit(3)) : null;
+  const [goalsSnapshot, goalsLoading] = useCollection(goalsQuery);
   
   const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
+  const goals: Goal[] = goalsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal)) || [];
   
   // Calculate total unread messages to display as a notification count
   const totalUnreadCount = channels.reduce((sum, channel) => sum + (channel.unreadCounts?.[user?.uid || ''] || 0), 0);
+  
+  // Placeholder data for other cards
+  const activePatients = 12;
+  const reportsGenerated = 38;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -44,7 +57,7 @@ export default function DashboardPage() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
@@ -63,7 +76,7 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{activePatients}</div>
             <p className="text-xs text-muted-foreground">+5 عن الشهر الماضي</p>
           </CardContent>
         </Card>
@@ -73,7 +86,7 @@ export default function DashboardPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">38</div>
+            <div className="text-2xl font-bold">{reportsGenerated}</div>
             <p className="text-xs text-muted-foreground">+12 هذا الأسبوع</p>
           </CardContent>
         </Card>
@@ -93,8 +106,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 mt-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 mt-6 lg:grid-cols-5">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary"/>
@@ -103,62 +116,46 @@ export default function DashboardPage() {
             <CardDescription>تحليل التزام المرضى بالتمارين والجلسات.</CardDescription>
           </CardHeader>
           <CardContent>
-             <div className="h-60 bg-secondary rounded-md flex items-center justify-center">
+             <div className="h-[300px] bg-secondary/50 rounded-md flex items-center justify-center">
               <p className="text-muted-foreground">مخطط بياني قيد التطوير...</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AreaChart className="h-5 w-5 text-primary"/>
-              مؤشرات التقدم الوظيفي
+              <Target className="h-5 w-5 text-primary"/>
+              آخر تحديثات الأهداف
             </CardTitle>
-            <CardDescription>تتبع تحسن القدرات الحركية للمرضى مع مرور الوقت.</CardDescription>
+            <CardDescription>لمحة سريعة على آخر الأهداف.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-60 bg-secondary rounded-md flex items-center justify-center">
-              <p className="text-muted-foreground">مخطط بياني قيد التطوير...</p>
-            </div>
+            {goalsLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {goals.map(goal => {
+                    const statusInfo = statusMap[goal.status as keyof typeof statusMap];
+                    return (
+                        <div key={goal.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">
+                            {statusInfo.icon}
+                            <div>
+                                <p className="font-semibold text-sm">{goal.title}</p>
+                                <p className="text-xs text-muted-foreground">{goal.patient} - <span className={statusInfo.className}>{statusInfo.text}</span></p>
+                            </div>
+                        </div>
+                    )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-       <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary"/>
-            حالة الأهداف المشتركة
-          </CardTitle>
-           <CardDescription>
-            عرض حالة الأهداف الطبية والوظيفية للمرضى النشطين.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-md">
-              <div>
-                <p className="font-semibold">المريض: عبدالله الأحمد</p>
-                <p className="text-sm text-muted-foreground">الهدف: زيادة نطاق حركة الكتف 20 درجة</p>
-              </div>
-              <Badge variant="outline" className="text-green-600 border-green-600">في المسار الصحيح</Badge>
-            </div>
-             <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-md">
-              <div>
-                <p className="font-semibold">المريضة: فاطمة الزهراني</p>
-                <p className="text-sm text-muted-foreground">الهدف: المشي لمسافة 100 متر بدون مساعدة</p>
-              </div>
-              <Badge variant="outline" className="text-yellow-600 border-yellow-600">يحتاج متابعة</Badge>
-            </div>
-             <div className="flex justify-between items-center p-3 bg-secondary/50 rounded-md">
-              <div>
-                <p className="font-semibold">المريض: خالد الغامدي</p>
-                <p className="text-sm text-muted-foreground">الهدف: تخفيف الألم بنسبة 50%</p>
-              </div>
-              <Badge variant="outline" className="text-red-600 border-red-600">متأخر</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+       
     </div>
   );
 }
