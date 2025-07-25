@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 export const runtime = 'edge';
 
+// The request now simply contains the messages array managed by useChat
 const DiscussRequestSchema = z.object({
   messages: z.array(AIMessageSchema),
 });
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1];
     const question = lastMessage.content;
 
-    // The entire message history is now passed from the client
+    // The entire message history, including the initial system prompt,
+    // is now passed directly from the client.
     const history = messages;
 
     // Validate the input for the AI flow

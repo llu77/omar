@@ -16,11 +16,14 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
   
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/discuss',
+    // Initialize the chat with the system prompt and a welcome message.
+    // This ensures the context is part of the conversation from the start.
     initialMessages: [
+      { id: 'system-prompt', role: 'system', content: systemMessageContent },
       { id: 'assistant-initial', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
     ],
-    onFinish: () => {
-      // Logic after response finishes
+    onError: (err) => {
+      console.error("Discussion chat error:", err);
     }
   });
   
@@ -34,28 +37,6 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
       }
     }
   }, [messages]);
-
-  const handleDiscussionSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    // The useChat hook will automatically append the user's message.
-    // We just need to ensure the system context is part of the history sent.
-    const messagesWithSystemContext: AIMessage[] = [
-        { role: 'system', content: systemMessageContent, id: 'system-prompt' },
-        ...messages,
-        { role: 'user', content: input, id: 'current-user-input' }
-    ];
-
-    handleSubmit(e, {
-      options: {
-        body: {
-          messages: messagesWithSystemContext
-        }
-      }
-    });
-  };
-
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -115,7 +96,8 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
           </ScrollArea>
         </div>
         <div className="p-4 border-t bg-background">
-          <form onSubmit={handleDiscussionSubmit} className="flex items-center gap-2">
+          {/* We use the default handleSubmit from useChat without any special options */}
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               value={input}
               onChange={handleInputChange}
@@ -205,53 +187,51 @@ const MedicalResearchSummarizer = () => {
           </div>
           
           <div className="flex-1 flex flex-col min-h-0">
-             {!assistantMessage && !isLoading ? (
-                <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center text-blue-200/80 p-6">
-                        <BookOpen className="mx-auto h-16 w-16 mb-4" />
-                        <h2 className="mt-4 text-xl font-semibold">ابدأ رحلتك البحثية</h2>
-                        <p className="mt-2 text-md">
-                        اكتب سؤالاً أو موضوعًا لبدء تلخيص الأبحاث العلمية.
-                        </p>
+             <div className="flex-1 min-h-0">
+                <ScrollArea className="h-full">
+                    <div className="max-w-4xl mx-auto py-4">
+                        {!assistantMessage && !isLoading ? (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center text-blue-200/80 p-6">
+                                    <BookOpen className="mx-auto h-16 w-16 mb-4" />
+                                    <h2 className="mt-4 text-xl font-semibold">ابدأ رحلتك البحثية</h2>
+                                    <p className="mt-2 text-md">
+                                    اكتب سؤالاً أو موضوعًا لبدء تلخيص الأبحاث العلمية.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : assistantMessage ? (
+                            <div className="animate-slide-up">
+                                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 shadow-2xl border border-cyan-500/20">
+                                <div className="flex items-center mb-6 pb-4 border-b border-cyan-500/20">
+                                    <BookOpen className="w-7 h-7 text-cyan-400 ml-3" />
+                                    <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
+                                </div>
+                                <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
+                                    <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\\n/g, '<br />') }}/>
+                                </div>
+                                <div className="mt-6 pt-6 border-t border-cyan-500/20">
+                                    <Button size="sm" variant="outline" className="bg-transparent border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => {
+                                        setCurrentSummary(assistantMessage.content);
+                                        setCurrentTopic(input || currentTopic);
+                                        setIsDiscussionModalOpen(true);
+                                    }}>
+                                        <MessageSquare className="ml-2 h-4 w-4" />
+                                        ناقشني حول البحث
+                                    </Button>
+                                </div>
+                                </div>
+                            </div>
+                        ) : null}
+                        {isLoading && (
+                            <div className="flex items-center justify-center text-white/80 text-lg gap-4 p-10">
+                            <Loader2 className="animate-spin w-8 h-8" />
+                            <span>وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك...</span>
+                            </div>
+                        )}
                     </div>
-                </div>
-             ) : (
-                <div className="flex-1 min-h-0">
-                    <ScrollArea className="h-full">
-                        <div className="max-w-4xl mx-auto py-4">
-                            {assistantMessage && (
-                                <div className="animate-slide-up">
-                                    <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 shadow-2xl border border-cyan-500/20">
-                                    <div className="flex items-center mb-6 pb-4 border-b border-cyan-500/20">
-                                        <BookOpen className="w-7 h-7 text-cyan-400 ml-3" />
-                                        <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
-                                    </div>
-                                    <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
-                                        <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\\n/g, '<br />') }}/>
-                                    </div>
-                                    <div className="mt-6 pt-6 border-t border-cyan-500/20">
-                                        <Button size="sm" variant="outline" className="bg-transparent border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => {
-                                            setCurrentSummary(assistantMessage.content);
-                                            setCurrentTopic(input || currentTopic);
-                                            setIsDiscussionModalOpen(true);
-                                        }}>
-                                            <MessageSquare className="ml-2 h-4 w-4" />
-                                            ناقشني حول البحث
-                                        </Button>
-                                    </div>
-                                    </div>
-                                </div>
-                            )}
-                            {isLoading && (
-                                <div className="flex items-center justify-center text-white/80 text-lg gap-4 p-10">
-                                <Loader2 className="animate-spin w-8 h-8" />
-                                <span>وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك...</span>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </div>
-             )}
+                </ScrollArea>
+            </div>
           </div>
 
 
@@ -333,12 +313,14 @@ const MedicalResearchSummarizer = () => {
         .animation-delay-4000 { animation-delay: 4s; }
       `}</style>
 
-      <DiscussionModal
-        isOpen={isDiscussionModalOpen}
-        setIsOpen={setIsDiscussionModalOpen}
-        initialSummary={currentSummary}
-        topic={currentTopic}
-      />
+      {isDiscussionModalOpen && (
+        <DiscussionModal
+          isOpen={isDiscussionModalOpen}
+          setIsOpen={setIsDiscussionModalOpen}
+          initialSummary={currentSummary}
+          topic={currentTopic}
+        />
+      )}
     </>
   );
 };
