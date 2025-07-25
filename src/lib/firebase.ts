@@ -16,7 +16,7 @@ const firebaseConfig = {
 
 // Initialize Firebase using a singleton pattern
 let app: FirebaseApp;
-if (!getApps().length) {
+if (!getApps().length && firebaseConfig.apiKey) {
   app = initializeApp(firebaseConfig);
 } else {
   app = getApp();
@@ -30,13 +30,13 @@ let analytics: Analytics | null = null;
 // Set auth language to Arabic
 auth.languageCode = 'ar';
 
-// Initialize Analytics only in the browser
-if (typeof window !== 'undefined') {
-  isSupported().then(supported => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  });
+// Defer analytics initialization to prevent config errors
+if (typeof window !== 'undefined' && firebaseConfig.apiKey) {
+    isSupported().then(supported => {
+        if (supported) {
+            analytics = getAnalytics(app);
+        }
+    });
 }
 
 export { app, auth, db, storage, analytics };
