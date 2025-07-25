@@ -170,7 +170,7 @@ const MedicalResearchSummarizer = () => {
 
   return (
     <>
-      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900">
+      <div className="h-full flex flex-col relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900">
       
         <div className="absolute inset-0 overflow-hidden -z-10">
           <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500 rounded-full filter blur-3xl opacity-10 animate-pulse"></div>
@@ -179,7 +179,7 @@ const MedicalResearchSummarizer = () => {
           <div className="medical-grid"></div>
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col h-[calc(100vh-8rem)]">
+        <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col flex-1 min-h-0">
           <div className="text-center mb-6 animate-fade-in">
             <div className="inline-flex items-center justify-center space-x-4 mb-4">
                 <Brain className="w-8 h-8 text-cyan-300 animate-float" />
@@ -336,3 +336,5 @@ const MedicalResearchSummarizer = () => {
 };
 
 export default MedicalResearchSummarizer;
+
+    

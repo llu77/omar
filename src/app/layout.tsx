@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={tajawal.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background">
+      <body className="font-sans antialiased bg-background h-screen flex flex-col">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -46,7 +46,7 @@ export default function RootLayout({
           <PresenceManager />
           <div className="flex flex-col min-h-screen">
             <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
+            <main className="flex-grow container mx-auto px-4 py-8 flex flex-col">
               {children}
             </main>
             <footer className="border-t py-6 text-center text-sm text-muted-foreground">
@@ -59,3 +59,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    
