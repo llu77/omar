@@ -272,29 +272,20 @@ export default function CommunicationPage() {
     try {
       // Check if a DM channel already exists
       // IMPORTANT: This query requires a composite index in Firestore.
+      // The query needs to check for both ordering of participants to find an existing channel.
       // If you see an error in the browser console mentioning an index,
-      // it will provide a direct link to create it in the Firebase console.
+      // Firestore will provide a direct link to create it in the Firebase console.
       const channelsRef = collection(db, 'channels');
       const q = query(channelsRef, 
         where('type', '==', 'direct'),
-        where('participants', 'array-contains-any', [user.uid, otherUser.id])
+        where('participants', 'in', [[user.uid, otherUser.id], [otherUser.id, user.uid]])
       );
 
       const existingChannelsSnapshot = await getDocs(q);
-      let existingChannel = null;
-
-      // Since array-contains-any can return channels where only one participant matches,
-      // we need to filter client-side to find the exact match.
-      existingChannelsSnapshot.forEach(doc => {
-        const channel = doc.data() as CommunicationChannel;
-        const p = channel.participants;
-        if (p.length === 2 && p.includes(user.uid) && p.includes(otherUser.id)) {
-            existingChannel = { id: doc.id, ...channel };
-        }
-      });
-
-      if (existingChannel) {
+      
+      if (!existingChannelsSnapshot.empty) {
         // Channel already exists, just open it
+        const existingChannel = existingChannelsSnapshot.docs[0];
         setActiveChannelId(existingChannel.id);
         toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
       } else {
@@ -326,7 +317,7 @@ export default function CommunicationPage() {
 
     } catch (error) {
       console.error("Error creating channel:", error);
-      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة.' });
+      toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة. قد تحتاج إلى إنشاء فهرس مركب في Firestore. راجع الكونسول لمزيد من التفاصيل.' });
     } finally {
       setIsCreatingChannel(false);
     }
@@ -493,5 +484,7 @@ export default function CommunicationPage() {
     </div>
   );
 }
+
+    
 
     
