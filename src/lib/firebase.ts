@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
@@ -16,16 +17,21 @@ const firebaseConfig = {
 
 // Initialize Firebase using a singleton pattern
 let app: FirebaseApp;
-if (getApps().length === 0 && firebaseConfig.apiKey) {
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
+let analytics: Analytics | null = null;
+
+
+if (firebaseConfig.apiKey && getApps().length === 0) {
   app = initializeApp(firebaseConfig);
 } else {
   app = getApp();
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
-const storage: FirebaseStorage = getStorage(app);
-let analytics: Analytics | null = null;
+auth = getAuth(app);
+db = getFirestore(app);
+storage = getStorage(app);
 
 // Set auth language to Arabic
 if (auth) {
