@@ -5,7 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
-import { usePresence } from "@/hooks/use-presence";
+import PresenceManager from "@/components/presence-manager";
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
@@ -28,28 +28,6 @@ export const metadata: Metadata = {
   },
 };
 
-// This is a Client Component because it uses client-side hooks (usePresence).
-function WasselApp({ children }: { children: React.ReactNode }) {
-  "use client";
-
-  // This hook will manage the user's presence status across the app.
-  usePresence();
-  return (
-    <>
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
-          {children}
-        </main>
-        <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-          <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
-        </footer>
-      </div>
-      <Toaster />
-    </>
-  );
-}
-
 // This is the root Server Component.
 export default function RootLayout({
   children,
@@ -65,7 +43,17 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <WasselApp>{children}</WasselApp>
+          <PresenceManager />
+          <div className="flex flex-col min-h-screen">
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {children}
+            </main>
+            <footer className="border-t py-6 text-center text-sm text-muted-foreground">
+              <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
+            </footer>
+          </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

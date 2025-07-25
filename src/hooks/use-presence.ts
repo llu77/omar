@@ -11,7 +11,7 @@ import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
  * It updates the user's status to 'online' when they are active
  * and 'offline' when they disconnect.
  */
-export const usePresence = () => {
+export default function usePresence() {
   const [user] = useAuthState(auth);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -58,5 +58,4 @@ export const usePresence = () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [user]);
-};
-
+}
