@@ -4,12 +4,11 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useChat } from 'ai/react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Loader2, BookOpen, MessageSquare, Send, Bot, User, FlaskConical, CornerDownLeft } from 'lucide-react';
+import { Loader2, BookOpen, MessageSquare, Send, Bot, User, FlaskConical, CornerDownLeft, Search, FileText, Star, Sparkles, Brain, Activity, Heart } from 'lucide-react';
 import { AIMessage } from '@/types';
 
 const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen: boolean, setIsOpen: (open: boolean) => void, initialSummary: string, topic: string }) => {
@@ -18,14 +17,16 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
     role: 'system',
     content: `You are a research expert. The user wants to discuss the following research summary on "${topic}". Engage with them scientifically and medically, without bias, and provide the best reliable answers.\n\nHere is the summary:\n${initialSummary}`
   };
+  
+  const initialModalMessages: AIMessage[] = [
+    { id: '1', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
+  ];
 
   const { messages, setMessages, input, handleInputChange, handleSubmit: originalHandleSubmit, isLoading } = useChat({
     api: '/api/discuss',
-    initialMessages: [
-      { id: '1', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
-    ]
+    initialMessages: initialModalMessages
   });
-
+  
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,13 +40,20 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Pass the entire history, including the system message, in the body
+    if (!input.trim()) return;
+
+    const fullHistory: AIMessage[] = [
+      systemMessage,
+      ...messages,
+      { id: Date.now().toString(), role: 'user', content: input },
+    ];
+    
     originalHandleSubmit(e, {
       options: {
         body: {
-          messages: [systemMessage, ...messages]
-        }
-      }
+          messages: fullHistory,
+        },
+      },
     });
   };
 
@@ -130,6 +138,7 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
   );
 };
 
+
 const MedicalResearchSummarizer = () => {
   const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
   const [currentSummary, setCurrentSummary] = useState('');
@@ -152,97 +161,301 @@ const MedicalResearchSummarizer = () => {
     setCurrentSummary('');
     handleSubmit(e);
   };
-  
-  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      // Create a fake form event to pass to handleFormSubmit
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+      handleFormSubmit(fakeEvent);
     }
-  }, [messages]);
+  };
 
   const hasSummary = messages.some(m => m.role === 'assistant');
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-10rem)] max-w-3xl mx-auto">
-        <Card className="flex-1 flex flex-col shadow-lg">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <FlaskConical className="h-12 w-12 text-primary" />
+      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900 text-white">
+        {/* Animated Background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="medical-particles">
+            {[...Array(15)].map((_, i) => (
+              <div
+                key={i}
+                className="particle"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 10}s`,
+                  animationDuration: `${15 + Math.random() * 10}s`
+                }}
+              >
+                <Heart className="w-6 h-6 text-teal-400 opacity-20" />
+              </div>
+            ))}
+          </div>
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500 rounded-full filter blur-3xl opacity-10 animate-pulse"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500 rounded-full filter blur-3xl opacity-10 animate-pulse animation-delay-2000"></div>
+          <div className="absolute top-1/2 right-1/3 w-64 h-64 bg-cyan-500 rounded-full filter blur-3xl opacity-10 animate-pulse animation-delay-4000"></div>
+          <div className="medical-grid"></div>
+        </div>
+
+        {/* Main Content */}
+        <div className="relative z-10 container mx-auto px-4 py-8">
+          <div className="text-center mb-12 animate-fade-in">
+            <div className="inline-flex items-center justify-center space-x-4 mb-6">
+              <Brain className="w-12 h-12 text-cyan-300 animate-float" />
+              <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-blue-500/30 to-teal-500/30 rounded-full shadow-lg shadow-blue-500/20">
+                <Sparkles className="w-10 h-10 text-amber-400" />
+              </div>
+              <Activity className="w-12 h-12 text-teal-300 animate-float animation-delay-1000" />
             </div>
-            <CardTitle className="text-3xl font-bold">مساعد البحوث العلمية</CardTitle>
-            <CardDescription>
-              احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-            <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
-              <div className="space-y-6">
-                {messages.length === 0 && !isLoading && (
-                  <div className="text-center text-muted-foreground py-10">
-                    <BookOpen className="mx-auto h-16 w-16 mb-4 opacity-50" />
-                    <h2 className="text-xl font-semibold mb-2">كيف يمكنني مساعدتك اليوم؟</h2>
-                    <p>يمكنك البدء بكتابة موضوع طبي في الحقل أدناه.</p>
-                     <div className="mt-6 space-y-2 text-sm">
-                        <p>أمثلة:</p>
-                        <button onClick={() => setInput('تأثير التمارين الرياضية على مرضى السكري')} className="text-primary hover:underline">"تأثير التمارين الرياضية على مرضى السكري"</button><br/>
-                        <button onClick={() => setInput('أحدث علاجات مرض الزهايمر')} className="text-primary hover:underline">"أحدث علاجات مرض الزهايمر"</button>
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 animate-gradient">
+                ملخص الأبحاث الطبية الحديثة
+              </span>
+            </h1>
+            <p className="text-lg md:text-xl text-blue-200 max-w-2xl mx-auto leading-relaxed">
+              احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة باستخدام الذكاء الاصطناعي
+            </p>
+          </div>
+
+          <div className="max-w-3xl mx-auto mb-8">
+            <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 shadow-2xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300">
+              <form onSubmit={handleFormSubmit}>
+                <div className="mb-6">
+                  <label className="block text-cyan-200 text-sm font-medium mb-3">
+                    ما الموضوع الطبي الذي تريد البحث عنه؟
+                  </label>
+                  <div className="relative group">
+                    <Input
+                      type="text"
+                      value={input}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="مثال: علاج السكري، أبحاث السرطان، تقنيات جراحة القلب..."
+                      className="w-full px-5 py-4 pr-14 bg-white/10 border-2 border-cyan-400/30 rounded-xl text-white placeholder-cyan-300/50 focus:outline-none focus:border-cyan-400 focus:bg-white/15 transition-all duration-300"
+                      disabled={isLoading}
+                    />
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-cyan-400 w-6 h-6 group-focus-within:text-cyan-300 transition-colors" />
+                  </div>
+                </div>
+                
+                <Button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-teal-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-teal-700 focus:outline-none focus:ring-4 focus:ring-cyan-400/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg hover:shadow-cyan-500/25"
+                >
+                  {isLoading ? (
+                    <span className="flex items-center justify-center">
+                      <Loader2 className="animate-spin ml-3 w-6 h-6" />
+                      جاري البحث وتحليل الأبحاث...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      <FileText className="ml-3 w-6 h-6" />
+                      تلخيص الأبحاث الطبية
+                    </span>
+                  )}
+                </Button>
+              </form>
+            </div>
+          </div>
+
+          {error && (
+            <div className="max-w-3xl mx-auto mb-8 p-5 bg-red-500/10 backdrop-blur-lg border-2 border-red-500/30 rounded-xl text-red-300 animate-shake">
+              <p className="flex items-center">
+                <span className="text-2xl ml-2">⚠️</span>
+                {error.message}
+              </p>
+            </div>
+          )}
+          
+          {isLoading && (
+            <div className="max-w-3xl mx-auto mb-8 p-5 bg-cyan-500/10 backdrop-blur-lg border-2 border-cyan-500/30 rounded-xl text-cyan-300">
+               <span className="flex items-center justify-center">
+                  <Loader2 className="animate-spin ml-3 w-6 h-6" />
+                  وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك
+                </span>
+            </div>
+          )}
+
+          {hasSummary && !isLoading && messages.filter(m => m.role === 'assistant').map((m, i) => (
+            <div key={m.id || i} className="max-w-4xl mx-auto animate-slide-up mb-8">
+              <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 md:p-10 shadow-2xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300">
+                <div className="flex items-center mb-8 pb-6 border-b border-cyan-500/20">
+                  <BookOpen className="w-8 h-8 text-cyan-400 ml-3" />
+                  <h2 className="text-3xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
+                </div>
+                
+                <div className="prose prose-invert max-w-none prose-lg text-cyan-100/90 leading-relaxed rtl-prose" dangerouslySetInnerHTML={{ __html: m.content.replace(/\n/g, '<br />') }}>
+                </div>
+                
+                <div className="mt-8 pt-8 border-t border-cyan-500/20">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center text-cyan-300">
+                      <Star className="w-5 h-5 ml-2 text-amber-400" />
+                      <span className="font-medium">مصادر موثقة ومحدثة</span>
                     </div>
-                  </div>
-                )}
-                
-                {error && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-md text-destructive">
-                    <p><strong>خطأ:</strong> {error.message}</p>
-                  </div>
-                )}
-                
-                {messages.filter(m => m.role === 'assistant').map((m, i) => (
-                   <div key={i} className="prose prose-sm sm:prose-base max-w-none rtl-prose" dangerouslySetInnerHTML={{ __html: m.content.replace(/\n/g, '<br />') }} />
-                ))}
-
-                {isLoading && (
-                  <div className="flex items-center justify-center gap-3 text-muted-foreground p-8">
-                    <Loader2 className="animate-spin h-6 w-6" />
-                    <span>وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك</span>
-                  </div>
-                )}
-
-                {!isLoading && hasSummary && (
-                  <div className="mt-8 pt-6 border-t">
                     <Button onClick={() => setIsDiscussionModalOpen(true)}>
                       <MessageSquare className="ml-2 h-4 w-4" />
                       ناقشني حول البحث
                     </Button>
                   </div>
-                )}
+                </div>
               </div>
-            </ScrollArea>
-            <div className="p-4 border-t">
-              <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
-                <Input
-                  value={input}
-                  onChange={handleInputChange}
-                  placeholder="اكتب موضوع البحث هنا..."
-                  className="flex-1"
-                  disabled={isLoading}
-                />
-                <Button type="submit" disabled={isLoading || !input.trim()}>
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">إرسال</span>
-                </Button>
-              </form>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+
+        </div>
+
+        <style jsx>{`
+          .medical-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+          }
+
+          .particle {
+            position: absolute;
+            animation: float-diagonal 20s infinite linear;
+          }
+
+          @keyframes float-diagonal {
+            0% {
+              transform: translate(0, 100vh) rotate(0deg);
+              opacity: 0;
+            }
+            10% {
+              opacity: 0.3;
+            }
+            90% {
+              opacity: 0.3;
+            }
+            100% {
+              transform: translate(100vw, -100vh) rotate(360deg);
+              opacity: 0;
+            }
+          }
+
+          .medical-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+              linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: grid-move 25s linear infinite;
+          }
+
+          @keyframes grid-move {
+            0% {
+              transform: translate(0, 0);
+            }
+            100% {
+              transform: translate(60px, 60px);
+            }
+          }
+
+          .animate-fade-in {
+            animation: fadeIn 1.2s ease-out;
+          }
+
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(-30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .animate-slide-up {
+            animation: slideUp 0.7s ease-out;
+          }
+
+          @keyframes slideUp {
+            from {
+              opacity: 0;
+              transform: translateY(40px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          .animate-float {
+            animation: float 4s ease-in-out infinite;
+          }
+
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0) scale(1);
+            }
+            50% {
+              transform: translateY(-15px) scale(1.05);
+            }
+          }
+
+          .animate-gradient {
+            background-size: 200% 200%;
+            animation: gradient 4s ease infinite;
+          }
+
+          @keyframes gradient {
+            0% {
+              background-position: 0% 50%;
+            }
+            50% {
+              background-position: 100% 50%;
+            }
+            100% {
+              background-position: 0% 50%;
+            }
+          }
+          
+          .rtl-prose {
+             direction: rtl;
+             text-align: right;
+          }
+          
+          .rtl-prose a {
+            color: hsl(var(--primary));
+          }
+          .rtl-prose a:hover {
+              text-decoration: underline;
+          }
+
+          .animate-shake {
+            animation: shake 0.6s ease-in-out;
+          }
+
+          @keyframes shake {
+            0%, 100% {
+              transform: translateX(0);
+            }
+            25% {
+              transform: translateX(-8px);
+            }
+            75% {
+              transform: translateX(8px);
+            }
+          }
+
+          .animation-delay-1000 {
+            animation-delay: 1s;
+          }
+
+          .animation-delay-2000 {
+            animation-delay: 2s;
+          }
+          
+          .animation-delay-4000 {
+            animation-delay: 4s;
+          }
+        `}</style>
       </div>
 
       {currentSummary && (
@@ -253,19 +466,6 @@ const MedicalResearchSummarizer = () => {
           topic={currentTopic}
         />
       )}
-      
-       <style jsx>{`
-        .rtl-prose {
-          direction: rtl;
-          text-align: right;
-        }
-        .rtl-prose a {
-            color: hsl(var(--primary));
-        }
-        .rtl-prose a:hover {
-            text-decoration: underline;
-        }
-      `}</style>
     </>
   );
 };
