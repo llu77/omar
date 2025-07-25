@@ -90,7 +90,7 @@ export default function AssessmentPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [fileNumber, setFileNumber] = useState("");
+  const [fileNumber, setFileNumber] = useState<string | null>(null);
   const [user, loading] = useAuthState(auth);
   const [currentStep, setCurrentStep] = useState(1);
   const [formProgress, setFormProgress] = useState(0);
@@ -171,6 +171,10 @@ export default function AssessmentPage() {
     if (!user) {
       toast({ variant: "destructive", title: "خطأ", description: "يجب تسجيل الدخول أولاً." });
       return;
+    }
+    if (!fileNumber) {
+        toast({ variant: "destructive", title: "خطأ", description: "رقم الملف غير جاهز بعد." });
+        return;
     }
     
     startTransition(async () => {
@@ -387,7 +391,11 @@ export default function AssessmentPage() {
                   )}/>
                   <div>
                     <FormLabel>رقم الملف</FormLabel>
-                    <Input disabled value={fileNumber} className="mt-2 bg-muted/50 border-dashed font-mono" />
+                    {fileNumber ? (
+                      <Input disabled value={fileNumber} className="mt-2 bg-muted/50 border-dashed font-mono" />
+                    ) : (
+                      <Skeleton className="h-10 w-full mt-2" />
+                    )}
                     <FormDescription>يتم توليده تلقائياً ولا يمكن تغييره.</FormDescription>
                   </div>
                 </div>
