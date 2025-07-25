@@ -16,8 +16,6 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
   
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: '/api/discuss',
-    // Initialize the chat with the system prompt and a welcome message.
-    // This ensures the context is part of the conversation from the start.
     initialMessages: [
       { id: 'system-prompt', role: 'system', content: systemMessageContent },
       { id: 'assistant-initial', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
@@ -66,7 +64,8 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
                     </Avatar>
                   )}
                   <div
-                    className={`max-w-xs md:max-w-md lg:max-w-lg rounded-xl px-4 py-3 ${
+                    dir="rtl"
+                    className={`max-w-xs md:max-w-md lg:max-w-lg rounded-xl px-4 py-3 text-right ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-secondary'
@@ -96,7 +95,6 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
           </ScrollArea>
         </div>
         <div className="p-4 border-t bg-background">
-          {/* We use the default handleSubmit from useChat without any special options */}
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <Input
               value={input}
