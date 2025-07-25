@@ -1,13 +1,17 @@
+
 "use client";
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { auth, db } from '@/lib/firebase';
+import { collection, query, where } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, BarChart3, Users, FileText, Bell, Target } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import type { CommunicationChannel } from '@/types';
 
 // This is a placeholder for the advanced dashboard functionality.
 // The full implementation will require backend services and data aggregation.
@@ -15,6 +19,15 @@ import { Badge } from '@/components/ui/badge';
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
+
+  // Real-time query for channels to get unread counts
+  const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid)) : null;
+  const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
+  
+  const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
+  
+  // Calculate total unread messages to display as a notification count
+  const totalUnreadCount = channels.reduce((sum, channel) => sum + (channel.unreadCounts?.[user?.uid || ''] || 0), 0);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -70,8 +83,12 @@ export default function DashboardPage() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
-            <p className="text-xs text-muted-foreground">تنبيهات تتطلب المراجعة</p>
+            {channelsLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+               <div className="text-2xl font-bold">{totalUnreadCount}</div>
+            )}
+            <p className="text-xs text-muted-foreground">رسائل غير مقروءة تتطلب المراجعة</p>
           </CardContent>
         </Card>
       </div>

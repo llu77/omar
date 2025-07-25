@@ -1,4 +1,6 @@
+
 import { z } from "zod";
+import type { Timestamp } from "firebase/firestore";
 
 export interface PatientFormValues {
   name: string;
@@ -38,11 +40,25 @@ export interface DashboardData {
   unifiedView: object; // To be defined in detail later
 }
 
+// Updated Communication Schemas for Real-Time Firestore implementation
+export interface Message {
+  id: string;
+  content: string;
+  senderId: string;
+  senderName: string;
+  timestamp: Timestamp;
+}
+
 export interface CommunicationChannel {
   id: string;
+  name: string;
   type: 'direct' | 'group' | 'bot';
   participants: string[];
-  lastMessage: object; // To be defined in detail later
+  lastMessageContent?: string;
+  lastMessageTimestamp?: Timestamp;
+  unreadCounts?: { [userId: string]: number };
+  createdAt: Timestamp;
+  avatarUrl?: string;
 }
 
 export interface Goal {
@@ -61,21 +77,21 @@ export interface Goal {
 // ==================== AI Flow Schemas ====================
 
 // Schemas for consult-rehab-expert flow
-export const MessageSchema = z.object({
+export const AIMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'model']),
   content: z.string().min(1),
 });
 
 export const ConsultRehabExpertInputSchema = z.object({
   question: z.string().min(1, 'السؤال مطلوب'),
-  history: z.array(MessageSchema).default([]),
+  history: z.array(AIMessageSchema).default([]),
 });
 
 export const ConsultRehabExpertOutputSchema = z.object({
   answer: z.string(),
 });
 
-export type Message = z.infer<typeof MessageSchema>;
+export type AIMessage = z.infer<typeof AIMessageSchema>;
 export type ConsultRehabExpertInput = z.infer<typeof ConsultRehabExpertInputSchema>;
 export type ConsultRehabExpertOutput = z.infer<typeof ConsultRehabExpertOutputSchema>;
 
