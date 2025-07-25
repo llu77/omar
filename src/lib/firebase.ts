@@ -9,13 +9,13 @@ import { getAnalytics, Analytics, isSupported } from "firebase/analytics";
 // and after the environment variables have been loaded.
 const getFirebaseConfig = () => {
   const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-  };
+  "projectId": "wassel-telerehab",
+  "appId": "1:279555875363:web:f643d98561fddc495bc796",
+  "storageBucket": "wassel-telerehab.appspot.com",
+  "apiKey": "AIzaSyCQgNa2YXS-5Wp1wAITyNg8f-FEhfm984Q",
+  "authDomain": "wassel-telerehab.firebaseapp.com",
+  "messagingSenderId": "279555875363"
+};
 
   // Throw an error if the API key is missing, which is a common setup issue.
   if (!firebaseConfig.apiKey) {
