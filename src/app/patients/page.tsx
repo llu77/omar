@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -77,9 +77,17 @@ export default function PatientsPage() {
         
         const fetchedReports = reportsSnapshot.docs.map(doc => {
             const data = doc.data();
+            let createdAtDate: Date;
+            if (data.createdAt instanceof Timestamp) {
+                createdAtDate = data.createdAt.toDate();
+            } else if (typeof data.createdAt === 'string') {
+                createdAtDate = new Date(data.createdAt);
+            } else {
+                createdAtDate = new Date(); // Fallback
+            }
             return {
                 fileNumber: data.fileNumber,
-                createdAt: data.createdAt.toDate(),
+                createdAt: createdAtDate,
             };
         });
         setReports(fetchedReports);

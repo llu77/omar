@@ -127,7 +127,7 @@ export default function ReportPage() {
         const dataToSave: ReportData = {
           ...reportData,
           ownerId: user.uid,
-          createdAt: Timestamp.now() as any,
+          createdAt: Timestamp.now(), // Always use Firestore Timestamp on save
         };
 
         await setDoc(reportDocRef, dataToSave);
@@ -333,4 +333,3 @@ export default function ReportPage() {
     </div>
   );
 }
-
