@@ -21,12 +21,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   Send, Video, Paperclip, Phone, UserPlus, Bot, MessageSquare, Loader2, 
   PlusCircle, Search, Shield, Clock, CheckCircle2, AlertTriangle, 
-  FileText, Image as ImageIcon, Mic, Volume2, Translate, Star,
+  FileText, Image as ImageIcon, Mic, Star, Languages,
   MoreHorizontal, Download, Eye, Lock, Unlock, Users, Calendar,
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
-  Copy, Reply, Forward,
+  Copy, Reply, Forward, FileVideo, FileAudio,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
-  Maximize2, Minimize2, VolumeOff, UserCheck, Activity, File, FileAudio, FileVideo
+  Maximize2, Minimize2, Volume, Volume2, VolumeX, UserCheck, Activity
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -156,8 +156,8 @@ const getFileIcon = (fileType: string) => {
   if (fileType.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
   if (fileType.startsWith('video/')) return <FileVideo className="h-4 w-4" />;
   if (fileType.startsWith('audio/')) return <FileAudio className="h-4 w-4" />;
-  if (fileType === 'application/pdf') return <FileText className="h-4 w-4" />; // Changed from FilePdf to FileText
-  return <File className="h-4 w-4" />;
+  if (fileType === 'application/pdf') return <FileText className="h-4 w-4" />;
+  return <FileText className="h-4 w-4" />;
 };
 
 const getMedicalPriorityColor = (priority: string) => {
@@ -598,7 +598,7 @@ const EnhancedMessageBubble = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="icon" variant="ghost" className="h-6 w-6">
-                  <Translate className="h-3 w-3" />
+                  <Languages className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -969,16 +969,11 @@ export default function EnhancedCommunicationPage() {
 
   // Filter channels based on current filter
   const filteredChannels = allChannels.filter(channel => {
-    switch (channelFilter) {
-      case 'unread':
-        return (channel.unreadCounts?.[user?.uid || ''] || 0) > 0;
-      case 'pinned':
-        return channel.isPinned;
-      case 'archived':
-        return channel.isArchived;
-      default:
-        return !channel.isArchived;
-    }
+    if (channelFilter === 'all') return !channel.isArchived;
+    if (channelFilter === 'unread') return !channel.isArchived && (channel.unreadCounts?.[user?.uid || ''] || 0) > 0;
+    if (channelFilter === 'pinned') return !channel.isArchived && channel.isPinned;
+    if (channelFilter === 'archived') return channel.isArchived;
+    return false;
   });
 
   // Effects
