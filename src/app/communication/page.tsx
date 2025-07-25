@@ -241,7 +241,7 @@ export default function CommunicationPage() {
       const usersRef = collection(db, "users");
       // IMPORTANT: Firestore queries are case-sensitive. Searching by email will
       // be more reliable if you enforce storing emails in a consistent case 
-      // (e.g., lowercase) during user registration.
+      // (e.g., lowercase) during user registration. This is now handled in the register page.
       const q = query(usersRef, where("email", "==", searchEmail.trim().toLowerCase()));
       const querySnapshot = await getDocs(q);
       const results: User[] = [];
@@ -271,10 +271,14 @@ export default function CommunicationPage() {
     setIsCreatingChannel(true);
     try {
       // Check if a DM channel already exists
-      // IMPORTANT: This query requires a composite index in Firestore.
-      // The query needs to check for both ordering of participants to find an existing channel.
-      // If you see an error in the browser console mentioning an index,
-      // Firestore will provide a direct link to create it in the Firebase console.
+      // =================================================================================
+      // DEVELOPER NOTE: This query requires a composite index in Firestore.
+      // If you see an error in the browser console that mentions an index, Firestore
+      // will provide a direct link to create it in the Firebase console.
+      // The required index is on the 'channels' collection, for the fields:
+      // `type` (Ascending) and `participants` (Array-Contains).
+      // Click the link from the error message to create it automatically.
+      // =================================================================================
       const channelsRef = collection(db, 'channels');
       const q = query(channelsRef, 
         where('type', '==', 'direct'),
@@ -484,7 +488,5 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
-    
 
     
