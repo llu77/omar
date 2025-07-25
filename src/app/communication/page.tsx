@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, or } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,7 +141,7 @@ export default function CommunicationPage() {
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [searchEmail, setSearchEmail] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
@@ -234,35 +234,51 @@ export default function CommunicationPage() {
 
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
-    if (!searchEmail.trim() || !user) return;
+    if (!searchInput.trim() || !user) return;
     setIsSearching(true);
     setSearchResults([]);
     try {
-      const usersRef = collection(db, "users");
-      // IMPORTANT: Firestore queries are case-sensitive. Searching by email will
-      // be more reliable if you enforce storing emails in a consistent case 
-      // (e.g., lowercase) during user registration. This is now handled in the register page.
-      const q = query(usersRef, where("email", "==", searchEmail.trim().toLowerCase()));
-      const querySnapshot = await getDocs(q);
-      const results: User[] = [];
-      querySnapshot.forEach((doc) => {
-        // Exclude current user from search results
-        if (doc.id !== user.uid) {
-          results.push({ id: doc.id, ...doc.data() } as User);
+        const usersRef = collection(db, "users");
+        const searchTerm = searchInput.trim();
+        const isEmail = searchTerm.includes('@');
+        
+        let q;
+        if (isEmail) {
+            // Search by email (case-insensitive by storing emails as lowercase)
+            q = query(usersRef, where("email", "==", searchTerm.toLowerCase()));
+        } else if (/^\d{6}$/.test(searchTerm)) {
+            // Search by 6-digit user code
+            q = query(usersRef, where("userCode", "==", searchTerm));
+        } else {
+             toast({
+                title: "صيغة البحث غير صالحة",
+                description: "يرجى إدخال بريد إلكتروني صالح أو رقم تعريفي مكون من 6 أرقام.",
+            });
+            setIsSearching(false);
+            return;
         }
-      });
-      setSearchResults(results);
-      if (results.length === 0) {
-        toast({
-          title: "لا توجد نتائج",
-          description: "لم يتم العثور على مستخدم بهذا البريد الإلكتروني.",
+
+        const querySnapshot = await getDocs(q);
+        const results: User[] = [];
+        querySnapshot.forEach((doc) => {
+            if (doc.id !== user.uid) {
+                results.push({ id: doc.id, ...doc.data() } as User);
+            }
         });
-      }
+        
+        setSearchResults(results);
+        
+        if (results.length === 0) {
+            toast({
+                title: "لا توجد نتائج",
+                description: "لم يتم العثور على مستخدم بهذه البيانات.",
+            });
+        }
     } catch (error) {
-      console.error("Error searching users:", error);
-      toast({ variant: 'destructive', title: 'خطأ بالبحث', description: 'حدث خطأ أثناء البحث عن المستخدم.'});
+        console.error("Error searching users:", error);
+        toast({ variant: 'destructive', title: 'خطأ بالبحث', description: 'حدث خطأ أثناء البحث عن المستخدم. قد تحتاج إلى إنشاء فهرس في Firestore.' });
     } finally {
-      setIsSearching(false);
+        setIsSearching(false);
     }
   };
 
@@ -270,7 +286,6 @@ export default function CommunicationPage() {
     if (!user) return;
     setIsCreatingChannel(true);
     try {
-      // Check if a DM channel already exists
       // =================================================================================
       // DEVELOPER NOTE: This query requires a composite index in Firestore.
       // If you see an error in the browser console that mentions an index, Firestore
@@ -288,12 +303,10 @@ export default function CommunicationPage() {
       const existingChannelsSnapshot = await getDocs(q);
       
       if (!existingChannelsSnapshot.empty) {
-        // Channel already exists, just open it
         const existingChannel = existingChannelsSnapshot.docs[0];
         setActiveChannelId(existingChannel.id);
         toast({ title: "موجود بالفعل", description: "تم فتح المحادثة الحالية." });
       } else {
-        // Create a new channel
         const newChannelData = {
           name: otherUser.name,
           type: 'direct',
@@ -316,7 +329,7 @@ export default function CommunicationPage() {
         toast({ title: "تم إنشاء المحادثة", description: `يمكنك الآن التواصل مع ${otherUser.name}.` });
       }
       setIsNewUserModalOpen(false);
-      setSearchEmail('');
+      setSearchInput('');
       setSearchResults([]);
 
     } catch (error) {
@@ -362,17 +375,17 @@ export default function CommunicationPage() {
                 <DialogHeader>
                   <DialogTitle>بدء محادثة جديدة</DialogTitle>
                   <DialogDescription>
-                    ابحث عن مستخدم عن طريق البريد الإلكتروني لبدء محادثة آمنة.
+                    ابحث عن مستخدم عن طريق البريد الإلكتروني أو الرقم التعريفي (6 أرقام).
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <Input 
-                    placeholder="البريد الإلكتروني للمستخدم"
-                    value={searchEmail}
-                    onChange={(e) => setSearchEmail(e.target.value)}
+                    placeholder="البريد الإلكتروني أو الرقم التعريفي"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     disabled={isSearching}
                   />
-                  <Button type="submit" disabled={isSearching || !searchEmail.trim()}>
+                  <Button type="submit" disabled={isSearching || !searchInput.trim()}>
                     {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                   </Button>
                 </form>
@@ -488,5 +501,3 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
-    

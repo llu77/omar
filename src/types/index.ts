@@ -41,6 +41,7 @@ export interface User {
   email: string;
   role?: string;
   photoURL?: string;
+  userCode?: string;
 }
 
 export interface DashboardData {
@@ -131,5 +132,3 @@ export const GenerateEnhancedRehabPlanOutputSchema = z.object({
 
 export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
 export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
-
-    

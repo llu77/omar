@@ -7,9 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { useDocumentData } from 'react-firebase-hooks/firestore';
 import { signOut } from 'firebase/auth';
 import { useToast } from "@/hooks/use-toast";
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
+import { doc } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +31,6 @@ import {
   LogOut, 
   Menu, 
   X, 
-  User as UserIcon, 
   Stethoscope,
   LayoutDashboard,
   MessageSquare,
@@ -51,6 +52,7 @@ export default function Header() {
   const router = useRouter();
   const { toast } = useToast();
   const [user, loading] = useAuthState(auth);
+  const [userData] = useDocumentData(user ? doc(db, 'users', user.uid) : null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -88,7 +90,7 @@ export default function Header() {
       return (
         <div className="flex items-center gap-2">
             <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-10" />
         </div>
       );
     }
@@ -97,7 +99,7 @@ export default function Header() {
        return (
         <div className="flex items-center gap-2">
             <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-10 md:hidden" />
+            <Skeleton className="h-10 w-10" />
         </div>
        );
     }
@@ -121,6 +123,11 @@ export default function Header() {
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">{user.displayName || 'المستخدم'}</p>
                   <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                   {userData?.userCode && (
+                    <p className="text-xs leading-none text-muted-foreground pt-1">
+                      الرقم التعريفي: <span className="font-mono text-primary">{userData.userCode}</span>
+                    </p>
+                  )}
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -143,7 +150,7 @@ export default function Header() {
     }
     
     return (
-      <div className="flex items-center gap-2">
+      <div className="hidden items-center gap-2 md:flex">
         <Button asChild variant="ghost">
           <Link href="/login">تسجيل الدخول</Link>
         </Button>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, getDocs, collection, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +59,27 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// Helper function to generate a unique user code
+async function generateUniqueUserCode(): Promise<string> {
+    let userCode;
+    let isUnique = false;
+    const usersRef = collection(db, "users");
+
+    while (!isUnique) {
+        // Generate a random 6-digit number
+        userCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Check if the code already exists in Firestore
+        const q = query(usersRef, where("userCode", "==", userCode));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            isUnique = true;
+        }
+    }
+    return userCode as string;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -93,7 +115,7 @@ export default function RegisterPage() {
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
-    const finalEmail = values.email.toLowerCase(); // Standardize email
+    const finalEmail = values.email.toLowerCase();
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
@@ -102,6 +124,7 @@ export default function RegisterPage() {
       );
       
       if (userCredential.user) {
+        const userCode = await generateUniqueUserCode();
         await updateProfile(userCredential.user, {
           displayName: values.name
         });
@@ -111,6 +134,7 @@ export default function RegisterPage() {
           email: finalEmail,
           role: values.role,
           licenseNumber: values.licenseNumber,
+          userCode: userCode,
           createdAt: serverTimestamp(),
           provider: 'email',
         });
@@ -163,10 +187,13 @@ export default function RegisterPage() {
           throw new Error("لم يتم توفير بريد إلكتروني من خلال Google.");
       }
 
-      // Create or update a user document in Firestore
-      await setDoc(doc(db, "users", user.uid), {
+      const userDocRef = doc(db, "users", user.uid);
+      const userCode = await generateUniqueUserCode();
+      
+      await setDoc(userDocRef, {
         name: user.displayName,
-        email: user.email.toLowerCase(), // Standardize email
+        email: user.email.toLowerCase(),
+        userCode: userCode,
         createdAt: serverTimestamp(),
         provider: 'google',
       }, { merge: true });
@@ -425,5 +452,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-
-    
