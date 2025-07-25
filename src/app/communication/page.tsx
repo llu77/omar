@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, FormEvent } from 'react';
+import { useEffect, useState, useRef, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
@@ -21,12 +21,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { 
   Send, Video, Paperclip, Phone, UserPlus, Bot, MessageSquare, Loader2, 
   PlusCircle, Search, Shield, Clock, CheckCircle2, AlertTriangle, 
-  FileText, Image as ImageIcon, Mic, Star, Languages,
+  FileText, Image as ImageIcon, Mic, Volume2, Star,
   MoreHorizontal, Download, Eye, Lock, Unlock, Users, Calendar,
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
-  Copy, Reply, Forward, FileVideo, FileAudio,
+  FileVideo, Copy, Reply, Forward, Languages,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
-  Maximize2, Minimize2, Volume, Volume2, VolumeX, UserCheck, Activity
+  Maximize2, Minimize2, UserCheck, Activity, FileAudio
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
