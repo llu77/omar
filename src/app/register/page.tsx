@@ -93,10 +93,11 @@ export default function RegisterPage() {
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
+    const finalEmail = values.email.toLowerCase(); // Standardize email
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
-        values.email, 
+        finalEmail, 
         values.password
       );
       
@@ -107,7 +108,7 @@ export default function RegisterPage() {
 
         await setDoc(doc(db, "users", userCredential.user.uid), {
           name: values.name,
-          email: values.email,
+          email: finalEmail,
           role: values.role,
           licenseNumber: values.licenseNumber,
           createdAt: serverTimestamp(),
@@ -157,11 +158,15 @@ export default function RegisterPage() {
       provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      
+      if (!user.email) {
+          throw new Error("لم يتم توفير بريد إلكتروني من خلال Google.");
+      }
 
       // Create or update a user document in Firestore
       await setDoc(doc(db, "users", user.uid), {
         name: user.displayName,
-        email: user.email,
+        email: user.email.toLowerCase(), // Standardize email
         createdAt: serverTimestamp(),
         provider: 'google',
       }, { merge: true });
@@ -177,7 +182,7 @@ export default function RegisterPage() {
         toast({
           variant: "destructive",
           title: "خطأ في تسجيل الدخول",
-          description: "فشل تسجيل الدخول باستخدام Google.",
+          description: error.message || "فشل تسجيل الدخول باستخدام Google.",
         });
       }
     } finally {
@@ -420,3 +425,5 @@ export default function RegisterPage() {
     </div>
   );
 }
+
+    
