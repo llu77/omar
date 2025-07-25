@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
 import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { Send, Video, Paperclip, Phone, UserPlus, Bot, MessageSquare, Loader2, P
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import type { CommunicationChannel, Message as MessageType } from '@/types';
+import type { CommunicationChannel, Message as MessageType, User } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { User } from '@/types';
+
 
 // ======================= COMPONENT: ChannelListItem =======================
 
@@ -38,9 +38,34 @@ interface ChannelListItemProps {
 }
 
 const ChannelListItem = ({ channel, isActive, onClick, currentUserId }: ChannelListItemProps) => {
-  const lastMessage = channel.lastMessageContent;
-  const lastMessageTimestamp = channel.lastMessageTimestamp?.toDate();
-  const unreadCount = channel.unreadCounts?.[currentUserId] || 0;
+    const { toast } = useToast();
+    const otherParticipantId = channel.type === 'direct' ? channel.participants.find(p => p !== currentUserId) : null;
+
+    const [otherUserData, otherUserLoading, otherUserError] = useDocumentData(
+        otherParticipantId ? doc(db, 'users', otherParticipantId) : null
+    );
+
+    useEffect(() => {
+        if(otherUserError) {
+            toast({ variant: 'destructive', title: 'خطأ', description: `فشل في جلب بيانات المستخدم: ${otherUserError.message}` });
+        }
+    }, [otherUserError, toast]);
+
+    const name = channel.type === 'bot' 
+        ? channel.name 
+        : (otherUserData?.name || channel.name || 'مستخدم غير معروف');
+    
+    const avatarUrl = channel.type === 'bot' 
+        ? channel.avatarUrl 
+        : (otherUserData?.photoURL || channel.avatarUrl);
+
+    const lastMessage = channel.lastMessageContent;
+    const lastMessageTimestamp = channel.lastMessageTimestamp?.toDate();
+    const unreadCount = channel.unreadCounts?.[currentUserId] || 0;
+
+    if (otherUserLoading) {
+        return <Skeleton className="h-[72px] w-full" />;
+    }
 
   return (
     <div
@@ -48,14 +73,14 @@ const ChannelListItem = ({ channel, isActive, onClick, currentUserId }: ChannelL
       className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/50'}`}
     >
       <Avatar className="h-12 w-12 border-2 border-primary/20">
-        <AvatarImage src={channel.avatarUrl || ''} alt={channel.name} />
+        <AvatarImage src={avatarUrl || ''} alt={name} />
         <AvatarFallback className={`${channel.type === 'bot' ? 'bg-primary text-primary-foreground' : ''}`}>
-          {channel.type === 'bot' ? <Bot size={24} /> : channel.name.substring(0, 2)}
+          {channel.type === 'bot' ? <Bot size={24} /> : name.substring(0, 2)}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 overflow-hidden">
         <div className="flex justify-between items-center">
-          <p className="font-semibold truncate">{channel.name}</p>
+          <p className="font-semibold truncate">{name}</p>
           {lastMessageTimestamp && (
             <p className="text-xs text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(lastMessageTimestamp, { addSuffix: true, locale: arSA })}
@@ -129,9 +154,18 @@ export default function CommunicationPage() {
   const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
 
   const messagesQuery = activeChannelId ? query(collection(db, 'channels', activeChannelId, 'messages'), orderBy('timestamp', 'asc')) : null;
-  const [messagesSnapshot, messagesLoading] = useCollection(messagesQuery);
+  const [messagesSnapshot, messagesLoading, messagesError] = useCollection(messagesQuery);
 
   const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
+  const activeChannelData = channels.find(c => c.id === activeChannelId);
+
+  const otherParticipantId = activeChannelData?.type === 'direct' 
+    ? activeChannelData.participants.find(p => p !== user?.uid) 
+    : null;
+    
+  const [otherUserData, otherUserLoading] = useDocumentData(
+    otherParticipantId ? doc(db, 'users', otherParticipantId) : null
+  );
 
   // --- Effects ---
   useEffect(() => {
@@ -253,17 +287,9 @@ export default function CommunicationPage() {
           name: otherUser.name,
           type: 'direct',
           participants: [user.uid, otherUser.id],
-          participantNames: {
-            [user.uid]: user.displayName || user.email,
-            [otherUser.id]: otherUser.name
-          },
-          participantAvatars: {
-            [user.uid]: user.photoURL || '',
-            [otherUser.id]: otherUser.photoURL || ''
-          },
           lastMessageContent: `بدأت محادثة مع ${otherUser.name}`,
           lastMessageTimestamp: serverTimestamp(),
-          unreadCounts: { [user.uid]: 0, [otherUser.id]: 1 },
+          unreadCounts: { [user.uid]: 0, [otherUser.id]: 0 },
           createdAt: serverTimestamp(),
         };
         const newChannelRef = await addDoc(channelsRef, newChannelData);
@@ -283,21 +309,18 @@ export default function CommunicationPage() {
   }
 
   // --- Render Logic ---
-  const activeChannelData = channels.find(c => c.id === activeChannelId);
-  
   const getActiveChannelName = () => {
-    if (!activeChannelData || !user) return '...';
-    if (activeChannelData.type === 'bot' || activeChannelData.type === 'group') return activeChannelData.name;
-    // For direct messages, find the other participant's name
-    const otherParticipantId = activeChannelData.participants.find(p => p !== user.uid);
-    return activeChannelData.participantNames?.[otherParticipantId || ''] || activeChannelData.name;
+    if (otherUserLoading) return 'تحميل...';
+    if (!activeChannelData || !user) return 'اختر محادثة';
+    if (activeChannelData.type === 'bot') return activeChannelData.name;
+    return otherUserData?.name || 'مستخدم غير معروف';
   };
   
   const getActiveChannelAvatar = () => {
+    if (otherUserLoading) return '';
     if (!activeChannelData || !user) return '';
-    if (activeChannelData.type === 'bot' || activeChannelData.type === 'group') return activeChannelData.avatarUrl;
-    const otherParticipantId = activeChannelData.participants.find(p => p !== user.uid);
-    return activeChannelData.participantAvatars?.[otherParticipantId || ''] || '';
+    if (activeChannelData.type === 'bot') return activeChannelData.avatarUrl;
+    return otherUserData?.photoURL || '';
   }
 
 
@@ -335,13 +358,13 @@ export default function CommunicationPage() {
                   </Button>
                 </form>
                 <div className="mt-4 space-y-2">
-                  {isSearching && <p>جاري البحث...</p>}
+                  {isSearching && <p className="text-center text-muted-foreground">جاري البحث...</p>}
                   {searchResults.map(foundUser => (
                     <div key={foundUser.id} className="flex items-center justify-between p-2 rounded-md border">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={foundUser.photoURL || ''} alt={foundUser.name} />
-                          <AvatarFallback>{foundUser.name[0]}</AvatarFallback>
+                          <AvatarFallback>{foundUser.name?.[0]}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-semibold">{foundUser.name}</p>
@@ -358,33 +381,24 @@ export default function CommunicationPage() {
             </Dialog>
         </CardHeader>
         <ScrollArea className="flex-1">
-          {channelsLoading && <div className="p-4 space-y-3"><Skeleton className="h-16 w-full"/><Skeleton className="h-16 w-full"/></div>}
+          {channelsLoading && <div className="p-4 space-y-3"><Skeleton className="h-[72px] w-full"/><Skeleton className="h-[72px] w-full"/></div>}
           {!channelsLoading && channels.length === 0 && (
-            <div className="p-6 text-center text-muted-foreground">
+            <div className="p-6 text-center text-muted-foreground h-full flex flex-col justify-center items-center">
               <MessageSquare className="mx-auto h-12 w-12" />
               <p className="mt-4">لا توجد محادثات.</p>
               <p className="text-sm">ابدأ محادثة جديدة.</p>
             </div>
           )}
           <div className="p-2">
-            {channels.map(channel => {
-               const otherParticipantId = channel.participants.find(p => p !== user.uid);
-               const name = (channel.type === 'direct') 
-                ? channel.participantNames?.[otherParticipantId || ''] || channel.name
-                : channel.name;
-               const avatar = (channel.type === 'direct')
-                ? channel.participantAvatars?.[otherParticipantId || '']
-                : channel.avatarUrl;
-
-              return (
+            {channels.map(channel => (
               <ChannelListItem 
                 key={channel.id} 
-                channel={{...channel, name, avatarUrl: avatar}}
+                channel={channel}
                 isActive={activeChannelId === channel.id}
                 onClick={() => setActiveChannelId(channel.id)}
                 currentUserId={user.uid}
               />
-            )})}
+            ))}
           </div>
         </ScrollArea>
       </Card>
@@ -448,10 +462,12 @@ export default function CommunicationPage() {
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                 <MessageSquare className="h-20 w-20 mb-4"/>
                 <p className="text-lg">اختر محادثة لبدء الدردشة</p>
-                <p>أو أنشئ محادثة جديدة</p>
+                <p>أو أنشئ محادثة جديدة من الزر أعلاه</p>
             </div>
          )}
       </Card>
     </div>
   );
 }
+
+    

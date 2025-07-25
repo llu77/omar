@@ -63,8 +63,6 @@ export interface CommunicationChannel {
   name: string;
   type: 'direct' | 'group' | 'bot';
   participants: string[];
-  participantNames?: { [userId: string]: string };
-  participantAvatars?: { [userId: string]: string };
   lastMessageContent?: string;
   lastMessageTimestamp?: Timestamp;
   unreadCounts?: { [userId: string]: number };
@@ -133,3 +131,5 @@ export const GenerateEnhancedRehabPlanOutputSchema = z.object({
 
 export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
 export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
+
+    
