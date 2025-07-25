@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, FileText, Target, AlertCircle, TrendingUp, CheckCircle, Activity, Dumbbell, Calendar } from 'lucide-react';
+import { Search, Loader2, User, FileText, Target, AlertCircle, TrendingUp, CheckCircle, Activity, Dumbbell, Calendar, FileSearch } from 'lucide-react';
 import type { PatientDataForAI, Goal } from '@/types';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -64,28 +64,31 @@ export default function PatientsPage() {
       setWasSearched(true);
 
       try {
-        const fileNumber = searchQuery.trim();
+        const fileNumberToSearch = searchQuery.trim();
 
-        // Fetch reports
-        const reportsQuery = query(collection(db, 'reports'), where('fileNumber', '==', fileNumber), orderBy('createdAt', 'desc'));
+        // Fetch reports to get patient info
+        const reportsQuery = query(collection(db, 'reports'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
         const reportsSnapshot = await getDocs(reportsQuery);
 
         if (reportsSnapshot.empty) {
           setError('لم يتم العثور على أي تقارير أو بيانات للمريض بهذا الرقم.');
           return;
         }
-
-        const fetchedReports = reportsSnapshot.docs.map(doc => ({
-          fileNumber: doc.id,
-          createdAt: doc.data().createdAt.toDate(),
-        }));
+        
+        const fetchedReports = reportsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                fileNumber: data.fileNumber,
+                createdAt: data.createdAt.toDate(),
+            };
+        });
         setReports(fetchedReports);
-
+        
         const patientInfo = reportsSnapshot.docs[0].data() as PatientDataForAI;
         setPatientData(patientInfo);
 
         // Fetch goals
-        const goalsQuery = query(collection(db, 'goals'), where('fileNumber', '==', fileNumber), orderBy('createdAt', 'desc'));
+        const goalsQuery = query(collection(db, 'goals'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
         const goalsSnapshot = await getDocs(goalsQuery);
         const fetchedGoals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
         setGoals(fetchedGoals);
@@ -187,7 +190,7 @@ export default function PatientsPage() {
                    <CardFooter className="text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                           <User className="h-3 w-3" />
-                          <span>أضيف بواسطة: {goal.creatorName} ({goal.creatorUserCode})</span>
+                          <span>أضيف بواسطة: {goal.creatorName || 'مستخدم غير معروف'} ({goal.creatorUserCode || 'N/A'})</span>
                       </div>
                   </CardFooter>
                 </Card>
