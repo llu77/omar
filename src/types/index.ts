@@ -109,7 +109,7 @@ export interface Goal {
 
 // Schemas for consult-rehab-expert flow
 export const AIMessageSchema = z.object({
-  role: z.enum(['user', 'assistant', 'model']),
+  role: z.enum(['user', 'assistant', 'model', 'system']),
   content: z.string().min(1),
 });
 
