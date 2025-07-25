@@ -35,7 +35,8 @@ import {
   LayoutDashboard,
   MessageSquare,
   Target,
-  Users
+  Users,
+  FlaskConical
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -45,6 +46,7 @@ const UserNavigation = [
   { name: "المرضى", href: "/patients", icon: <Users className="h-4 w-4" /> },
   { name: "تقاريري", href: "/retrieve", icon: <History className="h-4 w-4" /> },
   { name: "الأهداف", href: "/goals", icon: <Target className="h-4 w-4" /> },
+  { name: "البحوث", href: "/research", icon: <FlaskConical className="h-4 w-4" /> },
   { name: "التواصل", href: "/communication", icon: <MessageSquare className="h-4 w-4" /> },
   { name: "استشرني", href: "/consult", icon: <Stethoscope className="h-4 w-4" /> },
 ];
