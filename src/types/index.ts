@@ -42,9 +42,24 @@ export interface User {
   role?: string;
   photoURL?: string;
   userCode?: string;
-  status?: 'online' | 'offline';
+  status?: 'online' | 'offline' | 'away';
   lastSeen?: Timestamp;
+  specialization?: string;
 }
+
+export interface SmartAlert {
+  id: string;
+  type: 'goal_at_risk' | 'appointment_reminder' | 'low_compliance';
+  title: string;
+  description: string;
+  patientName: string;
+  patientId?: string;
+  relatedId: string; // e.g., goalId
+  timestamp: Timestamp;
+  isRead: boolean;
+  severity: 'high' | 'medium' | 'low';
+}
+
 
 export interface DashboardData {
   patientId: string;
@@ -136,5 +151,3 @@ export const GenerateEnhancedRehabPlanOutputSchema = z.object({
 
 export type GenerateEnhancedRehabPlanInput = z.infer<typeof GenerateEnhancedRehabPlanInputSchema>;
 export type GenerateEnhancedRehabPlanOutput = z.infer<typeof GenerateEnhancedRehabPlanOutputSchema>;
-
-    

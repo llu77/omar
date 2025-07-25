@@ -4,43 +4,60 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useCollection, useCollectionData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, limit, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, BarChart3, Users, FileText, Bell, Target, TrendingUp, CheckCircle } from 'lucide-react';
+import { AreaChart, BarChart3, Users, FileText, Bell, Target, TrendingUp, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { CommunicationChannel, Goal } from '@/types';
+import type { CommunicationChannel, Goal, SmartAlert } from '@/types';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { formatDistanceToNow } from 'date-fns';
+import { arSA } from 'date-fns/locale';
 
 const statusMap = {
   on_track: { text: 'في المسار الصحيح', icon: <TrendingUp className="h-4 w-4 text-green-600"/>, badge: 'outline', className: 'text-green-600 border-green-600' },
   needs_attention: { text: 'يحتاج متابعة', icon: <Bell className="h-4 w-4 text-yellow-600"/>, badge: 'secondary', className: 'text-yellow-600 border-yellow-600' },
-  at_risk: { text: 'في خطر', icon: <TrendingUp className="h-4 w-4 text-red-600"/>, badge: 'destructive', className: 'text-red-600 border-red-600' },
+  at_risk: { text: 'في خطر', icon: <AlertTriangle className="h-4 w-4 text-red-600"/>, badge: 'destructive', className: 'text-red-600 border-red-600' },
   achieved: { text: 'تم تحقيقه', icon: <CheckCircle className="h-4 w-4 text-blue-600"/>, badge: 'default', className: 'text-blue-600 border-blue-600' },
 };
 
+const complianceData = [
+  { name: 'علي حسن', compliance: 85 },
+  { name: 'سارة عبدالله', compliance: 92 },
+  { name: 'ياسر محمد', compliance: 65 },
+  { name: 'فاطمة الزهراء', compliance: 78 },
+  { name: 'خالد الغامدي', compliance: 88 },
+];
 
 export default function DashboardPage() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
-  // Real-time query for channels to get unread counts
+  // State for statistics
+  const [activePatientsCount, setActivePatientsCount] = useState(0);
+  const [reportsCount, setReportsCount] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Firestore Hooks
   const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid)) : null;
   const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
 
-  // Real-time query for recent goals
-  const goalsQuery = user ? query(collection(db, 'goals'), limit(3)) : null;
-  const [goalsSnapshot, goalsLoading] = useCollection(goalsQuery);
-  
-  const channels: CommunicationChannel[] = channelsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel)) || [];
-  const goals: Goal[] = goalsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal)) || [];
-  
-  // Calculate total unread messages to display as a notification count
-  const totalUnreadCount = channels.reduce((sum, channel) => sum + (channel.unreadCounts?.[user?.uid || ''] || 0), 0);
-  
-  // Placeholder data for other cards
-  const [reportsCount, setReportsCount] = useState(0);
+  const goalsQuery = user ? query(collection(db, 'goals'), orderBy('createdAt', 'desc'), limit(5)) : null;
+  const [goals, goalsLoading] = useCollectionData(goalsQuery, { idField: 'id' });
+
+  const alertsQuery = user ? query(collection(db, 'alerts'), where('isRead', '==', false), orderBy('timestamp', 'desc')) : null;
+  const [alerts, alertsLoading] = useCollectionData(alertsQuery, { idField: 'id' });
+
+  // Calculate total unread messages
+  const totalUnreadMessages = channelsSnapshot?.docs.reduce((sum, doc) => {
+      const channel = doc.data() as CommunicationChannel;
+      return sum + (channel.unreadCounts?.[user?.uid || ''] || 0);
+  }, 0) || 0;
+
+  const totalAlertsCount = (alerts?.length || 0) + totalUnreadMessages;
+
 
   useEffect(() => {
     if (!loading && !user) {
@@ -49,17 +66,29 @@ export default function DashboardPage() {
   }, [user, loading, router]);
   
   useEffect(() => {
-    async function fetchReportsCount() {
-        if(user) {
-            const reportsCol = collection(db, "reports");
-            const snapshot = await getDocs(reportsCol);
-            setReportsCount(snapshot.size);
+    async function fetchStats() {
+      if(user) {
+        try {
+          setStatsLoading(true);
+          // Fetch reports to calculate active patients and total reports
+          const reportsCol = collection(db, "reports");
+          const reportsSnapshot = await getDocs(reportsCol);
+          
+          const patientIds = new Set(reportsSnapshot.docs.map(doc => doc.data().name));
+          
+          setActivePatientsCount(patientIds.size);
+          setReportsCount(reportsSnapshot.size);
+        } catch (error) {
+          console.error("Failed to fetch dashboard stats:", error);
+        } finally {
+          setStatsLoading(false);
         }
+      }
     }
-    fetchReportsCount();
+    fetchStats();
   }, [user]);
 
-  if (loading || !user) {
+  if (loading || statsLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-12 w-1/3" />
@@ -68,7 +97,10 @@ export default function DashboardPage() {
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
-        <Skeleton className="h-96 w-full" />
+        <div className="grid gap-6 mt-6 lg:grid-cols-5">
+            <Skeleton className="h-96 w-full lg:col-span-3" />
+            <Skeleton className="h-96 w-full lg:col-span-2" />
+        </div>
       </div>
     );
   }
@@ -87,8 +119,8 @@ export default function DashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+5 عن الشهر الماضي</p>
+            <div className="text-2xl font-bold">{activePatientsCount}</div>
+            <p className="text-xs text-muted-foreground">إجمالي المرضى في النظام</p>
           </CardContent>
         </Card>
         <Card>
@@ -107,12 +139,12 @@ export default function DashboardPage() {
             <Bell className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {channelsLoading ? (
+            {channelsLoading || alertsLoading ? (
               <Skeleton className="h-8 w-1/2" />
             ) : (
-               <div className="text-2xl font-bold">{totalUnreadCount}</div>
+               <div className="text-2xl font-bold">{totalAlertsCount}</div>
             )}
-            <p className="text-xs text-muted-foreground">رسائل غير مقروءة تتطلب المراجعة</p>
+            <p className="text-xs text-muted-foreground">{totalUnreadMessages} رسالة و {alerts?.length || 0} تنبيه ذكي</p>
           </CardContent>
         </Card>
       </div>
@@ -124,11 +156,24 @@ export default function DashboardPage() {
               <BarChart3 className="h-5 w-5 text-primary"/>
               معدل الالتزام بالخطة
             </CardTitle>
-            <CardDescription>تحليل التزام المرضى بالتمارين والجلسات.</CardDescription>
+            <CardDescription>تحليل التزام المرضى بالتمارين والجلسات (بيانات تجريبية).</CardDescription>
           </CardHeader>
           <CardContent>
-             <div className="h-[300px] bg-secondary/50 rounded-md flex items-center justify-center">
-              <p className="text-muted-foreground">مخطط بياني قيد التطوير...</p>
+             <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={complianceData}>
+                        <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false}/>
+                        <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`}/>
+                        <Tooltip
+                            contentStyle={{
+                                background: "hsl(var(--background))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "var(--radius)",
+                            }}
+                        />
+                        <Bar dataKey="compliance" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
@@ -138,7 +183,7 @@ export default function DashboardPage() {
               <Target className="h-5 w-5 text-primary"/>
               آخر تحديثات الأهداف
             </CardTitle>
-            <CardDescription>لمحة سريعة على آخر الأهداف.</CardDescription>
+            <CardDescription>لمحة سريعة على آخر 5 أهداف.</CardDescription>
           </CardHeader>
           <CardContent>
             {goalsLoading ? (
@@ -149,10 +194,10 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {goals.map(goal => {
+                {(goals as Goal[])?.map(goal => {
                     const statusInfo = statusMap[goal.status as keyof typeof statusMap];
                     return (
-                        <div key={goal.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50">
+                        <div key={goal.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 cursor-pointer">
                             {statusInfo.icon}
                             <div>
                                 <p className="font-semibold text-sm">{goal.title}</p>
@@ -170,5 +215,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
