@@ -22,7 +22,7 @@ import { AlertCircle, Check, Loader2, Printer, UploadCloud } from "lucide-react"
 
 type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput & { ownerId?: string; createdAt?: any };
 
-type PageState = 'initial' | 'loading' | 'generating' | 'displaying' | 'error';
+type PageState = 'loading' | 'displaying' | 'error';
 
 export default function ReportPage() {
   const { fileNumber } = useParams() as { fileNumber: string };
@@ -30,30 +30,22 @@ export default function ReportPage() {
   const { toast } = useToast();
   const [user, authLoading] = useAuthState(auth);
 
-  const [pageState, setPageState] = useState<PageState>('initial');
+  const [pageState, setPageState] = useState<PageState>('loading');
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isSaving, startSavingTransition] = useTransition();
-  const [isSaved, setIsSaved] = useState(false);
-  const [hasChecked, setHasChecked] = useState(false);
-
+  
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
-    if (!hasChecked) {
-        loadReport();
-        setHasChecked(true);
-    }
-  }, [user, authLoading, fileNumber, router, hasChecked]);
+    loadReport();
+  }, [user, authLoading, fileNumber]);
 
   const loadReport = async () => {
-    if (!user) return;
     setPageState('loading');
     setErrorMessage(null);
-    setIsSaved(false);
   
     try {
       const reportDocRef = doc(db, "reports", fileNumber);
@@ -61,51 +53,17 @@ export default function ReportPage() {
   
       if (reportDoc.exists()) {
         const data = reportDoc.data() as ReportData;
-        if (data.createdAt && data.createdAt instanceof Timestamp) {
-            data.createdAt = data.createdAt.toDate();
-        }
         setReportData(data);
-        setIsSaved(true);
         setPageState('displaying');
-        toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير المشترك من السحابة." });
-        return;
+        toast({ title: "تم استعراض التقرير بنجاح", description: "تم تحميل التقرير من السحابة." });
+      } else {
+        throw new Error("لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو لم يتم إنشاؤه بعد.");
       }
-      
-      const localDataString = localStorage.getItem(`report-${fileNumber}`);
-      if (!localDataString) {
-        throw new Error("لم يتم العثور على بيانات التقييم لهذا الملف. يرجى البدء من جديد.");
-      }
-      
-      const patientData: PatientDataForAI = JSON.parse(localDataString);
-      
-      setPageState('generating');
-      const aiInput = {
-        job: patientData.job,
-        symptoms: patientData.symptoms,
-        age: patientData.age,
-        gender: patientData.gender,
-        neck: patientData.neck,
-        trunk: patientData.trunk,
-        standing: patientData.standing,
-        walking: patientData.walking,
-        medications: patientData.medications,
-        fractures: patientData.fractures,
-      };
-  
-      const aiOutput = await generateEnhancedRehabPlan(aiInput);
-      
-      setReportData({ ...patientData, ...aiOutput });
-      setPageState('displaying');
-  
     } catch (error: any) {
-      console.error("Error loading or generating report:", error);
+      console.error("Error loading report:", error);
       let message = "حدث خطأ غير متوقع.";
        if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
-          message = "ليس لديك الصلاحية لعرض هذا التقرير أو حدث خطأ في الصلاحيات. تأكد من أن قواعد الأمان في Firebase صحيحة.";
-      } else if (error.message && error.message.includes("not found")) {
-        message = "لم يتم العثور على التقرير. قد يكون الرقم غير صحيح أو تم حذفه.";
-      } else if (error.message && error.message.includes("AI")) {
-        message = `فشل توليد التقرير بالذكاء الاصطناعي: ${error.message}`;
+          message = "ليس لديك الصلاحية لعرض هذا التقرير.";
       } else {
         message = error.message;
       }
@@ -114,39 +72,6 @@ export default function ReportPage() {
     }
   };
   
-  const handleSaveToCloud = () => {
-    if (!reportData || !user) {
-      toast({ variant: "destructive", title: "خطأ", description: "لا توجد بيانات لحفظها." });
-      return;
-    }
-
-    startSavingTransition(async () => {
-      try {
-        const reportDocRef = doc(db, "reports", reportData.fileNumber);
-        
-        const dataToSave: ReportData = {
-          ...reportData,
-          ownerId: user.uid,
-          createdAt: Timestamp.now(), // Always use Firestore Timestamp on save
-        };
-
-        await setDoc(reportDocRef, dataToSave);
-        localStorage.removeItem(`report-${reportData.fileNumber}`);
-        setIsSaved(true);
-        toast({
-          title: "تم الحفظ بنجاح",
-          description: "تم حفظ التقرير في السحابة ومشاركته.",
-        });
-      } catch (error) {
-        console.error("Error saving to cloud:", error);
-        toast({
-          variant: "destructive",
-          title: "فشل الحفظ",
-          description: "لم نتمكن من حفظ التقرير في السحابة. تحقق من اتصالك بالإنترنت وقواعد الأمان.",
-        });
-      }
-    });
-  };
 
   const renderHeader = () => (
     <header className="flex flex-col sm:flex-row items-center justify-between mb-8 no-print">
@@ -158,26 +83,6 @@ export default function ReportPage() {
            <Printer className="ml-2 h-4 w-4"/>
           طباعة / حفظ PDF
         </Button>
-         {isSaved ? (
-          <Button disabled variant="secondary">
-             <Check className="ml-2 h-4 w-4"/>
-            محفوظ في السحابة
-          </Button>
-        ) : (
-          <Button onClick={handleSaveToCloud} disabled={isSaving || pageState !== 'displaying'}>
-             {isSaving ? (
-              <>
-                <Loader2 className="ml-2 h-4 w-4 animate-spin"/>
-                جاري الحفظ...
-              </>
-            ) : (
-              <>
-                <UploadCloud className="ml-2 h-4 w-4"/>
-                حفظ ومشاركة
-              </>
-            )}
-          </Button>
-        )}
       </div>
     </header>
   );
@@ -295,6 +200,16 @@ export default function ReportPage() {
   }
 
   const renderBody = () => {
+    if (pageState === 'loading') {
+       return (
+             <div className="space-y-6">
+                <Skeleton className="h-32 w-full"/>
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        );
+    }
     if (pageState === 'error') {
       return (
         <Alert variant="destructive">
@@ -309,15 +224,7 @@ export default function ReportPage() {
         </Alert>
       );
     }
-    if (pageState === 'generating') {
-        return (
-             <Card className="flex flex-col items-center justify-center p-12 text-center bg-secondary/50 border-primary/20 animate-pulse">
-                <Logo className="w-24 h-24 mb-6 animate-spin" showText={false} />
-                <h2 className="text-2xl font-bold text-primary">جاري إنشاء التقرير الشامل...</h2>
-                <p className="text-muted-foreground mt-2">يقوم نظام الذكاء الاصطناعي بتحليل البيانات لتوليد خطة تأهيلية دقيقة. قد تستغرق هذه العملية دقيقة.</p>
-            </Card>
-        );
-    }
+    
     return (
         <>
             {renderPatientInfo()}

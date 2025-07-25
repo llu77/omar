@@ -32,7 +32,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, useCallback } from "react";
-import type { PatientDataForAI } from "@/types";
+import type { PatientDataForAI, GenerateEnhancedRehabPlanInput } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Logo } from "@/components/logo";
@@ -41,7 +41,9 @@ import { AlertCircle, ArrowRight, ArrowLeft, Bone, CircleUser, FileText, HeartPu
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { debounce } from 'lodash';
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { generateEnhancedRehabPlan } from "@/ai/flows/generate-enhanced-rehab-plan";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
 
 
 const formSchema = z.object({
@@ -166,6 +168,10 @@ export default function AssessmentPage() {
 
   function onSubmit(values: FormValues) {
     setSubmitError(null);
+    if (!user) {
+      toast({ variant: "destructive", title: "خطأ", description: "يجب تسجيل الدخول أولاً." });
+      return;
+    }
     
     startTransition(async () => {
       try {
@@ -188,26 +194,45 @@ export default function AssessmentPage() {
             : "لا",
         };
 
-        const dataToSave = {
-          ...patientData,
-          createdAt: new Date().toISOString(),
+        const aiInput: GenerateEnhancedRehabPlanInput = {
+          job: patientData.job,
+          symptoms: patientData.symptoms,
+          age: patientData.age,
+          gender: patientData.gender,
+          neck: patientData.neck,
+          trunk: patientData.trunk,
+          standing: patientData.standing,
+          walking: patientData.walking,
+          medications: patientData.medications,
+          fractures: patientData.fractures,
         };
-        
-        localStorage.setItem(`report-${fileNumber}`, JSON.stringify(dataToSave));
+
+        const aiOutput = await generateEnhancedRehabPlan(aiInput);
+
+        const fullReportData = {
+          ...patientData,
+          ...aiOutput,
+          ownerId: user.uid,
+          createdAt: Timestamp.now(),
+        };
+
+        const reportDocRef = doc(db, "reports", fileNumber);
+        await setDoc(reportDocRef, fullReportData);
         
         toast({
-          title: "تم حفظ البيانات بنجاح ✓",
+          title: "تم إنشاء وحفظ التقرير بنجاح ✓",
           description: `جاري توجيهك لصفحة التقرير للملف رقم: ${fileNumber}`,
         });
         
         router.push(`/report/${fileNumber}`);
       } catch (error: any) {
-        console.error('Form submission error:', error);
-        setSubmitError(error.message || "حدث خطأ في حفظ البيانات");
+        console.error('Form submission and AI generation error:', error);
+        const errorMessage = error.message || "حدث خطأ غير متوقع أثناء توليد وحفظ التقرير.";
+        setSubmitError(errorMessage);
         toast({
           variant: "destructive",
-          title: "خطأ في الحفظ",
-          description: "لم نتمكن من حفظ بيانات النموذج. يرجى المحاولة مرة أخرى.",
+          title: "خطأ في إنشاء التقرير",
+          description: errorMessage,
         });
       }
     });
@@ -476,7 +501,7 @@ export default function AssessmentPage() {
                 {isPending ? (
                   <>
                     <Loader2 className="ml-2 h-5 w-5 animate-spin"/>
-                    جاري تحليل البيانات...
+                    جاري توليد وحفظ الخطة...
                   </>
                 ) : (
                   <>
