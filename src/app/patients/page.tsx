@@ -21,6 +21,10 @@ import { Progress } from '@/components/ui/progress';
 interface ReportSummary {
     fileNumber: string;
     createdAt: Date;
+    name: string;
+    age: number;
+    gender: "male" | "female";
+    symptoms: string;
 }
 
 const statusMap = {
@@ -44,7 +48,7 @@ export default function PatientsPage() {
   const [isSearching, startSearchTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   
-  const [patientData, setPatientData] = useState<PatientDataForAI | null>(null);
+  const [patientData, setPatientData] = useState<Partial<PatientDataForAI> | null>(null);
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [wasSearched, setWasSearched] = useState(false);
@@ -66,12 +70,17 @@ export default function PatientsPage() {
       try {
         const fileNumberToSearch = searchQuery.trim();
 
-        // Fetch reports to get patient info
+        // Fetch reports and goals in parallel
         const reportsQuery = query(collection(db, 'reports'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
-        const reportsSnapshot = await getDocs(reportsQuery);
+        const goalsQuery = query(collection(db, 'goals'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
 
-        if (reportsSnapshot.empty) {
-          setError('لم يتم العثور على أي تقارير أو بيانات للمريض بهذا الرقم.');
+        const [reportsSnapshot, goalsSnapshot] = await Promise.all([
+            getDocs(reportsQuery),
+            getDocs(goalsQuery)
+        ]);
+
+        if (reportsSnapshot.empty && goalsSnapshot.empty) {
+          setError('لم يتم العثور على أي تقارير أو أهداف للمريض بهذا الرقم.');
           return;
         }
         
@@ -86,20 +95,25 @@ export default function PatientsPage() {
                 createdAtDate = new Date(); // Fallback
             }
             return {
+                ...data,
                 fileNumber: data.fileNumber,
                 createdAt: createdAtDate,
-            };
+            } as ReportSummary;
         });
         setReports(fetchedReports);
         
-        const patientInfo = reportsSnapshot.docs[0].data() as PatientDataForAI;
-        setPatientData(patientInfo);
-
-        // Fetch goals
-        const goalsQuery = query(collection(db, 'goals'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
-        const goalsSnapshot = await getDocs(goalsQuery);
         const fetchedGoals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
         setGoals(fetchedGoals);
+
+        // Extract patient info from the first available source
+        if (fetchedReports.length > 0) {
+            setPatientData(fetchedReports[0]);
+        } else if (fetchedGoals.length > 0) {
+            setPatientData({
+                fileNumber: fetchedGoals[0].fileNumber,
+                name: fetchedGoals[0].patient,
+            });
+        }
 
       } catch (err) {
         console.error('Error searching for patient:', err);
@@ -119,19 +133,19 @@ export default function PatientsPage() {
       <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
         <div>
           <p className="text-sm text-muted-foreground">الاسم</p>
-          <p className="font-semibold">{patientData?.name}</p>
+          <p className="font-semibold">{patientData?.name || 'غير متوفر'}</p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">العمر</p>
-          <p className="font-semibold">{patientData?.age}</p>
+          <p className="font-semibold">{patientData?.age || 'N/A'}</p>
         </div>
         <div>
           <p className="text-sm text-muted-foreground">الجنس</p>
-          <p className="font-semibold">{patientData?.gender === 'male' ? 'ذكر' : 'أنثى'}</p>
+          <p className="font-semibold">{patientData?.gender === 'male' ? 'ذكر' : patientData?.gender === 'female' ? 'أنثى' : 'N/A'}</p>
         </div>
         <div className="col-span-2 md:col-span-3">
           <p className="text-sm text-muted-foreground">الأعراض الرئيسية</p>
-          <p className="font-semibold">{patientData?.symptoms}</p>
+          <p className="font-semibold">{patientData?.symptoms || 'غير متوفرة في هذا الملف'}</p>
         </div>
       </CardContent>
     </Card>
@@ -141,7 +155,7 @@ export default function PatientsPage() {
     <div className="space-y-4">
       <h2 className="text-2xl font-bold flex items-center gap-2">
         <FileText className="h-6 w-6 text-primary"/>
-        التقارير
+        التقارير ({reports.length})
       </h2>
       {reports.length > 0 ? (
         reports.map(report => (
@@ -169,7 +183,7 @@ export default function PatientsPage() {
      <div className="space-y-4">
       <h2 className="text-2xl font-bold flex items-center gap-2">
         <Target className="h-6 w-6 text-primary"/>
-        الأهداف المشتركة
+        الأهداف المشتركة ({goals.length})
       </h2>
        {goals.length > 0 ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -260,19 +274,19 @@ export default function PatientsPage() {
             <AlertTitle>خطأ في البحث</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
-        ) : patientData && (
+        ) : patientData ? (
           <div className="space-y-8 animate-in fade-in-50">
             {renderPatientCard()}
-            {renderReportsSection()}
-            {renderGoalsSection()}
+            {reports.length > 0 && renderReportsSection()}
+            {goals.length > 0 && renderGoalsSection()}
           </div>
-        )
+        ) : null
       )}
 
       {!wasSearched && !isSearching && (
         <div className="text-center py-16 border-2 border-dashed rounded-lg">
             <FileSearch className="mx-auto h-12 w-12 text-muted-foreground"/>
-            <h3 className="mt-4 text-lg font-medium">ابدا البحث</h3>
+            <h3 className="mt-4 text-lg font-medium">ابدأ البحث</h3>
             <p className="mt-1 text-sm text-muted-foreground">أدخل رقم ملف المريض في الحقل أعلاه للبدء.</p>
         </div>
       )}
