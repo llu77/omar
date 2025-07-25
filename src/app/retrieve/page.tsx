@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash } from "lucide-react";
+import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash, AlertTriangle } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 
 interface SavedReport {
@@ -116,7 +116,7 @@ export default function RetrievePage() {
 
     } catch (firebaseError: any) {
       console.error('Error loading reports:', firebaseError);
-      setError("فشل تحميل التقارير المحفوظة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
+      setError("فشل تحميل التقارير المحفوظة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات. يرجى التأكد من تطبيق قواعد الأمان الصحيحة في Firestore.");
     } finally {
       setIsLoadingReports(false);
     }
@@ -160,6 +160,14 @@ export default function RetrievePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+           <Alert variant="destructive" className="mb-6 bg-yellow-50 border-yellow-300 text-yellow-800">
+             <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            <AlertTitle className="font-bold">ملاحظة هامة للمطور</AlertTitle>
+            <AlertDescription>
+              لضمان عمل خاصية الحفظ والاستعادة من السحابة، يجب تطبيق قواعد الأمان الموجودة في ملف `firestore.rules` على قاعدة بيانات Firestore في مشروعك على Firebase.
+            </AlertDescription>
+          </Alert>
+
           <form onSubmit={handleRetrieve} className="space-y-2">
             <label htmlFor="fileNumber" className="text-sm font-medium">
               البحث برقم الملف
@@ -176,7 +184,7 @@ export default function RetrievePage() {
                 disabled={isSearching}
               />
               <Button type="submit" size="lg" disabled={isSearching}>
-                {isSearching ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="w-5 h-5"/>}
+                {isSearching ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="w-5 w-5"/>}
               </Button>
             </div>
           </form>

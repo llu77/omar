@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -110,7 +110,7 @@ export default function RegisterPage() {
           email: values.email,
           role: values.role,
           licenseNumber: values.licenseNumber,
-          createdAt: new Date().toISOString(),
+          createdAt: serverTimestamp(),
           provider: 'email',
         });
       }
@@ -158,12 +158,17 @@ export default function RegisterPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+      // Create a user document in Firestore
       await setDoc(doc(db, "users", user.uid), {
         name: user.displayName,
         email: user.email,
-        createdAt: new Date().toISOString(),
+        createdAt: serverTimestamp(),
         provider: 'google',
-      }, { merge: true });
+        // You might want to ask for role and license number in a subsequent step
+        // for users signing up with Google.
+        role: 'not_specified', 
+        licenseNumber: 'not_specified',
+      }, { merge: true }); // Use merge to avoid overwriting existing data if any
 
       toast({
         title: "تم تسجيل الدخول بنجاح ✓",

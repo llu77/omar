@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Logo } from "@/components/logo";
-import { AlertCircle, Check, Loader2, Printer, Save, UploadCloud } from "lucide-react";
+import { AlertCircle, Check, Loader2, Printer, UploadCloud } from "lucide-react";
 
 type ReportData = PatientDataForAI & GenerateEnhancedRehabPlanOutput;
 
@@ -124,8 +124,7 @@ export default function ReportPage() {
         // Use the new subcollection path for saving
         const reportDocRef = doc(db, "users", user.uid, "reports", reportData.fileNumber);
         
-        // Remove userId as it's redundant now
-        const { ...dataToSave } = {
+        const dataToSave = {
           ...reportData,
           createdAt: Timestamp.now(),
         };
