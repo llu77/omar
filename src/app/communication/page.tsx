@@ -153,7 +153,7 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const getFileIcon = (fileType: string) => {
-  if (fileType.startsWith('image/')) return <FileImage className="h-4 w-4" />;
+  if (fileType.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
   if (fileType.startsWith('video/')) return <FileVideo className="h-4 w-4" />;
   if (fileType.startsWith('audio/')) return <FileAudio className="h-4 w-4" />;
   if (fileType === 'application/pdf') return <FilePdf className="h-4 w-4" />;
