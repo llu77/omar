@@ -26,7 +26,7 @@ import {
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
   FileVideo, FileAudio2, Copy, Reply, Forward,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
-  Maximize2, Minimize2, VolumeOff, UserCheck, Activity, File, FileUp
+  Maximize2, Minimize2, VolumeOff, UserCheck, Activity, File
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
