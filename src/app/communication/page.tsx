@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef, FormEvent } from 'react';
+import { useEffect, useState, useRef, FormEvent, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
@@ -139,7 +139,6 @@ export default function CommunicationPage() {
   const { toast } = useToast();
 
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const [allChannels, setAllChannels] = useState<CommunicationChannel[]>([]);
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -151,8 +150,22 @@ export default function CommunicationPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // --- Firestore Hooks ---
-  const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid), orderBy('lastMessageTimestamp', 'desc')) : null;
+  // A simplified query to fetch all channels for a user.
+  // Sorting is now handled client-side to avoid complex indexing requirements.
+  const channelsQuery = user ? query(collection(db, 'channels'), where('participants', 'array-contains', user.uid)) : null;
   const [channelsSnapshot, channelsLoading] = useCollection(channelsQuery);
+
+  const allChannels = useMemo(() => {
+    if (!channelsSnapshot) return [];
+    const channels = channelsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel));
+    // Sort channels by the most recent message timestamp on the client
+    return channels.sort((a, b) => {
+      const timeA = a.lastMessageTimestamp?.toMillis() || 0;
+      const timeB = b.lastMessageTimestamp?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  }, [channelsSnapshot]);
+
 
   const messagesQuery = activeChannelId ? query(collection(db, 'channels', activeChannelId, 'messages'), orderBy('timestamp', 'asc')) : null;
   const [messagesSnapshot, messagesLoading, messagesError] = useCollection(messagesQuery);
@@ -173,13 +186,6 @@ export default function CommunicationPage() {
       router.push('/login');
     }
   }, [user, loading, router]);
-  
-  useEffect(() => {
-    if (channelsSnapshot) {
-      const channelsFromDb = channelsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CommunicationChannel));
-      setAllChannels(channelsFromDb);
-    }
-  }, [channelsSnapshot]);
 
   useEffect(() => {
     if (!activeChannelId && allChannels.length > 0) {
@@ -213,7 +219,7 @@ export default function CommunicationPage() {
 
     // Get the recipient's ID directly from the channel data for reliability
     const recipientId = activeChannelData.participants.find(p => p !== user.uid);
-    if (!recipientId) {
+    if (!recipientId && activeChannelData.type === 'direct') {
         toast({ variant: 'destructive', title: 'خطأ', description: 'لم يتم العثور على المستلم في هذه المحادثة.' });
         return;
     }
@@ -235,12 +241,17 @@ export default function CommunicationPage() {
         timestamp: serverTimestamp(),
       });
 
-      // Update channel's last message and increment unread count for the other user
-      batch.update(channelRef, {
+      // Update channel's last message and increment unread count for the other user(s)
+      const updateData: any = {
         lastMessageContent: messageContent,
         lastMessageTimestamp: serverTimestamp(),
-        [`unreadCounts.${recipientId}`]: increment(1)
-      });
+      };
+      
+      if(recipientId){
+        updateData[`unreadCounts.${recipientId}`] = increment(1);
+      }
+
+      batch.update(channelRef, updateData);
 
       await batch.commit();
 
@@ -310,10 +321,13 @@ export default function CommunicationPage() {
   const handleCreateChannel = async (otherUser: User) => {
     if (!user) return;
     setIsCreatingChannel(true);
+
     try {
-      // Client-side check for an existing channel
-      const existingChannel = allChannels.find(channel => 
-        channel.type === 'direct' && 
+      // Check for an existing direct channel client-side for immediate feedback
+      const existingChannel = allChannels.find(channel =>
+        channel.type === 'direct' &&
+        channel.participants.length === 2 &&
+        channel.participants.includes(user.uid) &&
         channel.participants.includes(otherUser.id)
       );
 
@@ -339,23 +353,13 @@ export default function CommunicationPage() {
           createdAt: serverTimestamp() as any, // Cast for local state
         };
         const newChannelRef = await addDoc(collection(db, 'channels'), newChannelData);
-        
-        // Proactively update local state to prevent race conditions
-        const finalNewChannel: CommunicationChannel = {
-          ...newChannelData,
-          id: newChannelRef.id,
-          // Replace server timestamps with a client-side date for immediate rendering
-          lastMessageTimestamp: { toDate: () => new Date() } as any,
-          createdAt: { toDate: () => new Date() } as any,
-        };
-        setAllChannels(prev => [finalNewChannel, ...prev]);
         setActiveChannelId(newChannelRef.id);
         toast({ title: "تم إنشاء المحادثة", description: `يمكنك الآن التواصل مع ${otherUser.name}.` });
       }
+
       setIsNewUserModalOpen(false);
       setSearchInput('');
       setSearchResults([]);
-
     } catch (error) {
       console.error("Error creating channel:", error);
       toast({ variant: 'destructive', title: 'خطأ', description: 'فشل في إنشاء قناة المحادثة. تحقق من اتصالك بالإنترنت.' });
@@ -492,7 +496,7 @@ export default function CommunicationPage() {
                     </Avatar>
                   <div>
                     <CardTitle className="text-lg">{getActiveChannelName()}</CardTitle>
-                    {renderPresenceStatus()}
+                    {activeChannelData.type === 'direct' && renderPresenceStatus()}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -546,7 +550,5 @@ export default function CommunicationPage() {
     </div>
   );
 }
-
-    
 
     
