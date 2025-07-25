@@ -15,23 +15,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Initialize Firebase using a singleton pattern
+// Initialize Firebase using a robust singleton pattern
 let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
-let analytics: Analytics | null = null;
-
-
-if (firebaseConfig.apiKey && getApps().length === 0) {
+if (getApps().length === 0) {
+  if (!firebaseConfig.apiKey) {
+    throw new Error("Firebase API Key is missing. Check your environment variables.");
+  }
   app = initializeApp(firebaseConfig);
 } else {
   app = getApp();
 }
 
-auth = getAuth(app);
-db = getFirestore(app);
-storage = getStorage(app);
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
+let analytics: Analytics | null = null;
 
 // Set auth language to Arabic
 if (auth) {
@@ -39,7 +37,7 @@ if (auth) {
 }
 
 const initializeAnalytics = async () => {
-    if (typeof window !== 'undefined' && firebaseConfig.apiKey) {
+    if (typeof window !== 'undefined') {
         const isAnalyticsSupported = await isSupported();
         if (isAnalyticsSupported && !analytics) {
             analytics = getAnalytics(app);
