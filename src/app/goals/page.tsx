@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, writeBatch, getDocs, query } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, writeBatch, getDocs, query, limit } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +27,7 @@ export default function GoalsPage() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
   const { toast } = useToast();
+  const [isSeeding, setIsSeeding] = useState(false);
   
   const goalsCollectionRef = collection(db, 'goals');
   const [goalsSnapshot, goalsLoading, goalsError] = useCollection(goalsCollectionRef);
@@ -41,15 +42,17 @@ export default function GoalsPage() {
   
   const seedGoals = async () => {
     if (!user) return;
+    setIsSeeding(true);
     try {
-        const q = query(collection(db, "goals"));
-        const existingGoals = await getDocs(q);
-        if(!existingGoals.empty){
+        const q = query(collection(db, "goals"), limit(1));
+        const existingGoalsSnapshot = await getDocs(q);
+        if(!existingGoalsSnapshot.empty){
              toast({
                 variant: 'destructive',
                 title: "بيانات موجودة",
                 description: "الأهداف التجريبية موجودة بالفعل.",
             });
+            setIsSeeding(false);
             return;
         }
 
@@ -63,8 +66,8 @@ export default function GoalsPage() {
       ];
 
       placeholderGoals.forEach(goal => {
-        const docRef = collection(db, "goals");
-        batch.set(docRef.doc(), { ...goal, createdAt: serverTimestamp(), createdBy: user.uid });
+        const docRef = doc(collection(db, "goals"));
+        batch.set(docRef, { ...goal, createdAt: serverTimestamp(), createdBy: user.uid });
       });
 
       await batch.commit();
@@ -79,6 +82,8 @@ export default function GoalsPage() {
         title: "خطأ",
         description: "فشلت إضافة الأهداف التجريبية.",
       });
+    } finally {
+        setIsSeeding(false);
     }
   };
 
@@ -106,7 +111,8 @@ export default function GoalsPage() {
           <p className="text-lg text-muted-foreground">متابعة وتنسيق الأهداف الطبية والوظيفية لضمان أفضل النتائج.</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline" onClick={seedGoals}>
+            <Button variant="outline" onClick={seedGoals} disabled={isSeeding}>
+              {isSeeding ? <Loader2 className="ml-2 h-4 w-4 animate-spin"/> : null}
               إضافة بيانات تجريبية
             </Button>
             <Button>

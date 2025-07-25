@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -190,6 +190,7 @@ export default function CommunicationPage() {
       lastMessageTimestamp: serverTimestamp(),
       unreadCounts: { [user.uid]: 1 },
       createdAt: serverTimestamp(),
+      avatarUrl: '/bot-avatar.png'
     });
 
     toast({ title: 'نجاح', description: 'تمت إضافة المحادثات التجريبية.' });

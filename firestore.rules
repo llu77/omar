@@ -1,52 +1,31 @@
-// These rules grant access to a node if the user's UID matches the document's key.
-//
-// HOW TO USE:
-// 1. Go to your Firebase console.
-// 2. Select your project.
-// 3. Navigate to Firestore Database.
-// 4. Click on the "Rules" tab.
-// 5. Copy the content of this file and paste it into the editor, replacing the existing rules.
-// 6. Click "Publish".
-//
-// WARNING: These rules are a basic starting point. For production apps, you should
-// implement more granular security rules.
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ================== USER DATA ==================
-    // Users can read and write to their own document.
-    // This allows them to update their profile information.
+    
+    // Allow users to manage their own user document.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // ================== USER REPORTS ==================
-    // A user can access the reports that are stored under their own user document.
-    match /users/{userId}/reports/{reportId} {
-      allow read, create, update, delete: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // ================== GOALS ==================
-    // Any authenticated user can read the list of goals.
-    // Only the creator of a goal can update or delete it.
-    // Any authenticated user can create a new goal.
-    match /goals/{goalId} {
-      allow read: if request.auth != null;
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && resource.data.createdBy == request.auth.uid;
+    }
+    
+    // Allow users to manage reports within their own subcollection.
+    match /users/{userId}/reports/{reportId} {
+      allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // ================== COMMUNICATION CHANNELS ==================
-    // A user can access a communication channel only if they are a participant.
+    // Allow any authenticated user to read/write to the shared 'goals' collection.
+    // This allows for real-time collaboration between different users.
+    match /goals/{goalId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow authenticated users who are participants in a channel to read/write.
     match /channels/{channelId} {
-      allow read, create, update: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow read, write: if request.auth != null && resource.data.participants.hasAny([request.auth.uid]);
       
-      // Messages can be read and created by any participant of the channel.
+      // Allow participants to read/write messages within that channel.
       match /messages/{messageId} {
-        allow read, create: if request.auth != null && get(/databases/$(database)/documents/channels/$(channelId)).data.participants.hasAny([request.auth.uid]);
+         allow read, write: if request.auth != null && get(/databases/$(database)/documents/channels/$(channelId)).data.participants.hasAny([request.auth.uid]);
       }
     }
   }
