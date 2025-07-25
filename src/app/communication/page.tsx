@@ -209,7 +209,14 @@ export default function CommunicationPage() {
   // --- Handlers ---
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!messageContent.trim() || !user || !activeChannelId || !otherParticipantId) return;
+    if (!messageContent.trim() || !user || !activeChannelId || !activeChannelData) return;
+
+    // Get the recipient's ID directly from the channel data for reliability
+    const recipientId = activeChannelData.participants.find(p => p !== user.uid);
+    if (!recipientId) {
+        toast({ variant: 'destructive', title: 'خطأ', description: 'لم يتم العثور على المستلم في هذه المحادثة.' });
+        return;
+    }
 
     setIsSending(true);
     try {
@@ -232,7 +239,7 @@ export default function CommunicationPage() {
       batch.update(channelRef, {
         lastMessageContent: messageContent,
         lastMessageTimestamp: serverTimestamp(),
-        [`unreadCounts.${otherParticipantId}`]: increment(1)
+        [`unreadCounts.${recipientId}`]: increment(1)
       });
 
       await batch.commit();
@@ -328,7 +335,7 @@ export default function CommunicationPage() {
           },
           lastMessageContent: `بدأت محادثة مع ${otherUser.name}`,
           lastMessageTimestamp: serverTimestamp() as any, // Cast for local state
-          unreadCounts: { [user.uid]: 0, [otherUser.id]: 0 },
+          unreadCounts: { [user.uid]: 0, [otherUser.id]: 1 },
           createdAt: serverTimestamp() as any, // Cast for local state
         };
         const newChannelRef = await addDoc(collection(db, 'channels'), newChannelData);
@@ -539,5 +546,7 @@ export default function CommunicationPage() {
     </div>
   );
 }
+
+    
 
     

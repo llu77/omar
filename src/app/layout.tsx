@@ -1,14 +1,11 @@
 
-"use client";
-
+import type { Metadata } from "next";
 import { Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { usePresence } from "@/hooks/use-presence";
-import type { Metadata } from "next";
-
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
@@ -17,8 +14,7 @@ const tajawal = Tajawal({
   display: 'swap',
 });
 
-// Metadata can't be used in a client component, but we can define it here.
-// In a real app, you might move this to a server component parent if needed.
+// Metadata must be exported from a Server Component.
 export const metadata: Metadata = {
   title: "Wassel AI for Medical Rehab",
   description: "Web application for generating personalized medical rehabilitation plans using AI.",
@@ -32,8 +28,10 @@ export const metadata: Metadata = {
   },
 };
 
-
+// This is a Client Component because it uses client-side hooks (usePresence).
 function WasselApp({ children }: { children: React.ReactNode }) {
+  "use client";
+
   // This hook will manage the user's presence status across the app.
   usePresence();
   return (
@@ -52,7 +50,7 @@ function WasselApp({ children }: { children: React.ReactNode }) {
   );
 }
 
-
+// This is the root Server Component.
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -73,4 +71,3 @@ export default function RootLayout({
     </html>
   );
 }
-
