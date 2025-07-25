@@ -47,12 +47,14 @@ export interface CommunicationChannel {
 
 export interface Goal {
   id: string;
-  patientId: string;
+  patient: string;
   title: string;
-  type: 'medical' | 'functional';
+  category: 'medical' | 'functional';
   status: 'on_track' | 'needs_attention' | 'at_risk' | 'achieved';
   progress: number;
   team: string[];
+  createdAt?: any;
+  createdBy?: string;
 }
 
 

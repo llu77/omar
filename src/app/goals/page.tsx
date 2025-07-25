@@ -3,62 +3,17 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from '@/lib/firebase';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { auth, db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, writeBatch, getDocs, query } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Target, Users, TrendingUp, PlusCircle, Filter } from 'lucide-react';
+import { CheckCircle, Target, Users, TrendingUp, PlusCircle, Filter, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-
-// Placeholder data for goals
-const goals = [
-  { 
-    id: 1, 
-    title: 'تحسين نطاق حركة الركبة للمريض #1123', 
-    patient: 'علي حسن', 
-    progress: 75, 
-    status: 'on_track', 
-    category: 'medical',
-    team: ['د. أحمد', 'أ. نورة'] 
-  },
-  { 
-    id: 2, 
-    title: 'استعادة القدرة على المشي للمريض #1123', 
-    patient: 'علي حسن', 
-    progress: 40, 
-    status: 'needs_attention', 
-    category: 'functional',
-    team: ['د. أحمد', 'أ. نورة'] 
-  },
-  { 
-    id: 3, 
-    title: 'تقليل آلام أسفل الظهر للمريضة #2451', 
-    patient: 'سارة عبدالله', 
-    progress: 90, 
-    status: 'achieved', 
-    category: 'medical',
-    team: ['د. خالد', 'أ. محمد'] 
-  },
-   { 
-    id: 4, 
-    title: 'تحسين التوازن ومنع السقوط للمريضة #2451', 
-    patient: 'سارة عبدالله', 
-    progress: 60, 
-    status: 'on_track', 
-    category: 'functional',
-    team: ['د. خالد', 'أ. محمد'] 
-  },
-   { 
-    id: 5, 
-    title: 'إعادة تأهيل الكتف بعد الجراحة للمريض #3890', 
-    patient: 'ياسر محمد', 
-    progress: 15, 
-    status: 'at_risk', 
-    category: 'medical',
-    team: ['د. فاطمة', 'أ. ليلى'] 
-  },
-];
+import type { Goal } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const statusMap = {
   on_track: { text: 'في المسار الصحيح', color: 'bg-green-500', badge: 'outline' },
@@ -71,6 +26,12 @@ const statusMap = {
 export default function GoalsPage() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
+  const { toast } = useToast();
+  
+  const goalsCollectionRef = collection(db, 'goals');
+  const [goalsSnapshot, goalsLoading, goalsError] = useCollection(goalsCollectionRef);
+
+  const goals: Goal[] = goalsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal)) || [];
 
   useEffect(() => {
     if (!loading && !user) {
@@ -78,7 +39,50 @@ export default function GoalsPage() {
     }
   }, [user, loading, router]);
   
-  if (loading || !user) {
+  const seedGoals = async () => {
+    if (!user) return;
+    try {
+        const q = query(collection(db, "goals"));
+        const existingGoals = await getDocs(q);
+        if(!existingGoals.empty){
+             toast({
+                variant: 'destructive',
+                title: "بيانات موجودة",
+                description: "الأهداف التجريبية موجودة بالفعل.",
+            });
+            return;
+        }
+
+      const batch = writeBatch(db);
+      const placeholderGoals = [
+          { title: 'تحسين نطاق حركة الركبة للمريض #1123', patient: 'علي حسن', progress: 75, status: 'on_track', category: 'medical', team: ['د. أحمد', 'أ. نورة'] },
+          { title: 'استعادة القدرة على المشي للمريض #1123', patient: 'علي حسن', progress: 40, status: 'needs_attention', category: 'functional', team: ['د. أحمد', 'أ. نورة'] },
+          { title: 'تقليل آلام أسفل الظهر للمريضة #2451', patient: 'سارة عبدالله', progress: 90, status: 'achieved', category: 'medical', team: ['د. خالد', 'أ. محمد'] },
+          { title: 'تحسين التوازن ومنع السقوط للمريضة #2451', patient: 'سارة عبدالله', progress: 60, status: 'on_track', category: 'functional', team: ['د. خالد', 'أ. محمد'] },
+          { title: 'إعادة تأهيل الكتف بعد الجراحة للمريض #3890', patient: 'ياسر محمد', progress: 15, status: 'at_risk', category: 'medical', team: ['د. فاطمة', 'أ. ليلى'] },
+      ];
+
+      placeholderGoals.forEach(goal => {
+        const docRef = collection(db, "goals");
+        batch.set(docRef.doc(), { ...goal, createdAt: serverTimestamp(), createdBy: user.uid });
+      });
+
+      await batch.commit();
+      toast({
+        title: "نجاح",
+        description: "تمت إضافة الأهداف التجريبية بنجاح.",
+      });
+    } catch (error) {
+      console.error("Error seeding goals: ", error);
+      toast({
+        variant: 'destructive',
+        title: "خطأ",
+        description: "فشلت إضافة الأهداف التجريبية.",
+      });
+    }
+  };
+
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -98,13 +102,12 @@ export default function GoalsPage() {
     <div className="animate-in fade-in-50">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">إدارة الأهداف المشتركة</h1>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">إدارة الأهداف المشتركة (مباشر)</h1>
           <p className="text-lg text-muted-foreground">متابعة وتنسيق الأهداف الطبية والوظيفية لضمان أفضل النتائج.</p>
         </div>
         <div className="flex gap-2">
-            <Button variant="outline">
-                <Filter className="ml-2 h-4 w-4" />
-                تصفية
+            <Button variant="outline" onClick={seedGoals}>
+              إضافة بيانات تجريبية
             </Button>
             <Button>
                 <PlusCircle className="ml-2 h-4 w-4" />
@@ -112,6 +115,24 @@ export default function GoalsPage() {
             </Button>
         </div>
       </div>
+
+      {goalsLoading && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-52 w-full" />)}
+        </div>
+      )}
+
+      {!goalsLoading && !goals.length && (
+        <div className="text-center py-16 border-2 border-dashed rounded-lg">
+          <Target className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-4 text-lg font-medium">لا توجد أهداف بعد</h3>
+          <p className="mt-1 text-sm text-muted-foreground">ابدأ بإضافة هدف جديد أو بيانات تجريبية.</p>
+        </div>
+      )}
+
+      {goalsError && (
+        <div className="text-red-500">حدث خطأ: {goalsError.message}</div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {goals.map(goal => (
@@ -136,8 +157,8 @@ export default function GoalsPage() {
               <div className="mb-3">
                 <div className="flex justify-between items-center mb-1">
                     <span className="text-sm font-medium">التقدم</span>
-                     <Badge variant={statusMap[goal.status as keyof typeof statusMap].badge}>
-                        {statusMap[goal.status as keyof typeof statusMap].text}
+                     <Badge variant={statusMap[goal.status as keyof typeof statusMap]?.badge as any || 'default'}>
+                        {statusMap[goal.status as keyof typeof statusMap]?.text || goal.status}
                      </Badge>
                 </div>
                 <Progress value={goal.progress} className="h-2" />
