@@ -43,7 +43,7 @@ Remember: All responses MUST be in Arabic, without exception.`;
     ];
 
     const response = await openai.chat.completions.create({
-        model: process.env.DEFAULT_MODEL || 'gpt-4-turbo',
+        model: 'gpt-3.5-turbo',
         messages: messages,
         temperature: 0.4, // Lower temperature for more factual responses
         stream: true,
