@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useCollection, useDocumentData } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, updateDoc, increment, DocumentData } from 'firebase/firestore';
+import { collection, doc, query, orderBy, addDoc, serverTimestamp, where, getDocs, writeBatch, updateDoc, increment, DocumentData, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +41,7 @@ const ChannelListItem = ({ channel, isActive, onClick, currentUserId }: ChannelL
     const { toast } = useToast();
     const otherParticipantId = channel.type === 'direct' ? channel.participants.find(p => p !== currentUserId) : null;
 
-    const [otherUserData, otherUserLoading, otherUserError] = useDocumentData(
+    const [otherUserData, otherUserLoading, otherUserError] = useDocumentData<User>(
         otherParticipantId ? doc(db, 'users', otherParticipantId) : null
     );
 
@@ -163,7 +163,7 @@ export default function CommunicationPage() {
     ? activeChannelData.participants.find(p => p !== user?.uid) 
     : null;
     
-  const [otherUserData, otherUserLoading] = useDocumentData(
+  const [otherUserData, otherUserLoading] = useDocumentData<User>(
     otherParticipantId ? doc(db, 'users', otherParticipantId) : null
   );
 
@@ -257,12 +257,14 @@ export default function CommunicationPage() {
     setSearchResults([]);
     try {
         const usersRef = collection(db, "users");
-        const searchTerm = searchInput.trim();
+        // Always convert search input to lowercase for case-insensitive matching.
+        // This relies on the assumption that emails in the DB are also stored in lowercase.
+        const searchTerm = searchInput.trim().toLowerCase();
         const isEmail = searchTerm.includes('@');
         
         let q;
         if (isEmail) {
-            q = query(usersRef, where("email", "==", searchTerm.toLowerCase()));
+            q = query(usersRef, where("email", "==", searchTerm));
         } else if (/^\d{6}$/.test(searchTerm)) {
             q = query(usersRef, where("userCode", "==", searchTerm));
         } else {
@@ -370,6 +372,27 @@ export default function CommunicationPage() {
     return otherUserData?.photoURL || '';
   }
 
+  const renderPresenceStatus = () => {
+    if (otherUserLoading || !otherUserData) {
+      return <span className="text-sm text-muted-foreground">جاري التحميل...</span>;
+    }
+    const isOnline = otherUserData.status === 'online' && otherUserData.lastSeen && (new Date().getTime() - otherUserData.lastSeen.toDate().getTime()) < 60000;
+    
+    if (isOnline) {
+      return <span className="text-sm text-green-500 flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />متصل الآن</span>;
+    }
+    
+    if (otherUserData.lastSeen) {
+      return (
+        <span className="text-sm text-muted-foreground">
+          آخر ظهور: {formatDistanceToNow(otherUserData.lastSeen.toDate(), { addSuffix: true, locale: arSA })}
+        </span>
+      );
+    }
+    
+    return <span className="text-sm text-muted-foreground">غير متصل</span>;
+  };
+
 
   if (loading) {
      return <div className="p-6"><Skeleton className="h-[70vh] w-full" /></div>;
@@ -462,7 +485,7 @@ export default function CommunicationPage() {
                     </Avatar>
                   <div>
                     <CardTitle className="text-lg">{getActiveChannelName()}</CardTitle>
-                    <p className="text-sm text-muted-foreground">متصل الآن</p>
+                    {renderPresenceStatus()}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

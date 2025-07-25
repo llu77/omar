@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+
+"use client";
+
 import { Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { usePresence } from "@/hooks/use-presence";
+import type { Metadata } from "next";
+
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
@@ -12,6 +17,8 @@ const tajawal = Tajawal({
   display: 'swap',
 });
 
+// Metadata can't be used in a client component, but we can define it here.
+// In a real app, you might move this to a server component parent if needed.
 export const metadata: Metadata = {
   title: "Wassel AI for Medical Rehab",
   description: "Web application for generating personalized medical rehabilitation plans using AI.",
@@ -24,6 +31,27 @@ export const metadata: Metadata = {
     locale: "en_US",
   },
 };
+
+
+function WasselApp({ children }: { children: React.ReactNode }) {
+  // This hook will manage the user's presence status across the app.
+  usePresence();
+  return (
+    <>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8">
+          {children}
+        </main>
+        <footer className="border-t py-6 text-center text-sm text-muted-foreground">
+          <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
+        </footer>
+      </div>
+      <Toaster />
+    </>
+  );
+}
+
 
 export default function RootLayout({
   children,
@@ -39,18 +67,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow container mx-auto px-4 py-8">
-                {children}
-              </main>
-              <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-                <p>© 2025 Wasl AI for Medical Rehabilitation. All rights reserved to Symbol AI.</p>
-              </footer>
-            </div>
-            <Toaster />
+          <WasselApp>{children}</WasselApp>
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

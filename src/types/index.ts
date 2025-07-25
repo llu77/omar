@@ -42,6 +42,8 @@ export interface User {
   role?: string;
   photoURL?: string;
   userCode?: string;
+  status?: 'online' | 'offline';
+  lastSeen?: Timestamp;
 }
 
 export interface DashboardData {
@@ -64,6 +66,8 @@ export interface CommunicationChannel {
   name: string;
   type: 'direct' | 'group' | 'bot';
   participants: string[];
+  participantNames: { [key: string]: string };
+  participantAvatars: { [key: string]: string };
   lastMessageContent?: string;
   lastMessageTimestamp?: Timestamp;
   unreadCounts?: { [userId: string]: number };
