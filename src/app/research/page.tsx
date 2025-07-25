@@ -60,85 +60,83 @@ export default function ResearchPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto animate-in fade-in-50">
+    <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto animate-in fade-in-50">
 
       {/* Page Header */}
       <header className="text-center mb-6">
-        <div className="inline-block bg-primary/10 p-3 rounded-full mb-3">
-          <FlaskConical className="h-10 w-10 text-primary" />
+        <div className="inline-block bg-primary/10 p-2 rounded-full mb-2">
+          <FlaskConical className="h-8 w-8 text-primary" />
         </div>
-        <h1 className="text-3xl font-bold font-headline">مساعد البحوث العلمية</h1>
-        <p className="text-base text-muted-foreground mt-2 max-w-2xl mx-auto">
-          احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة، معززة بالذكاء الاصطناعي.
+        <h1 className="text-2xl font-bold font-headline">مساعد البحوث العلمية</h1>
+        <p className="text-sm text-muted-foreground mt-1 max-w-2xl mx-auto">
+          احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة.
         </p>
       </header>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Card className="flex-1 flex flex-col shadow-lg overflow-hidden">
-          <CardContent className="flex-1 p-0">
-            <ScrollArea className="h-full" ref={scrollAreaRef}>
-              <div className="p-6 space-y-6">
-                {messages.length === 0 && !isLoading && (
-                  <div className="text-center text-muted-foreground p-8 space-y-4">
-                      <Sparkles className="h-10 w-10 mx-auto text-primary/50"/>
-                      <h3 className="text-lg font-semibold text-foreground">ابدأ البحث العلمي</h3>
-                      <p>يمكنك السؤال عن أي موضوع طبي، أو جرب أحد الأمثلة التالية:</p>
-                      <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                          {exampleQueries.slice(0,3).map((ex, i) => (
-                              <Button key={i} variant="outline" size="sm" onClick={() => handleExampleClick(ex)}>
-                                  {ex}
-                              </Button>
-                          ))}
-                      </div>
-                  </div>
-                )}
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex items-start gap-4 ${
-                      message.role === 'user' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    {message.role !== 'user' && (
-                      <Avatar className="h-9 w-9 border-2 border-primary/20">
-                        <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={21} /></AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div
-                      dir="auto"
-                      className={`max-w-xl rounded-xl px-4 py-3 shadow-sm ${
-                        message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-card border'
-                      }`}
-                    >
-                      {/* Render message content with markdown interpretation */}
-                      <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2" dangerouslySetInnerHTML={{ __html: message.content.replace(/\\n/g, '<br />') }} />
+      <Card className="flex-1 flex flex-col shadow-lg overflow-hidden">
+        <CardContent className="flex-1 p-0">
+          <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <div className="p-6 space-y-6">
+              {messages.length === 0 && !isLoading && (
+                <div className="text-center text-muted-foreground p-8 space-y-4">
+                    <Sparkles className="h-10 w-10 mx-auto text-primary/50"/>
+                    <h3 className="text-lg font-semibold text-foreground">ابدأ البحث العلمي</h3>
+                    <p>يمكنك السؤال عن أي موضوع طبي، أو جرب أحد الأمثلة التالية:</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                        {exampleQueries.slice(0,3).map((ex, i) => (
+                            <Button key={i} variant="outline" size="sm" onClick={() => handleExampleClick(ex)}>
+                                {ex}
+                            </Button>
+                        ))}
                     </div>
-                    {message.role === 'user' && (
-                      <Avatar className="h-9 w-9">
-                        <AvatarFallback><User size={21} /></AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex items-start gap-4 justify-start">
+                </div>
+              )}
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`flex items-start gap-4 ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {message.role !== 'user' && (
                     <Avatar className="h-9 w-9 border-2 border-primary/20">
                       <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={21} /></AvatarFallback>
                     </Avatar>
-                    <div className="bg-card border rounded-xl px-4 py-3 flex items-center gap-2 shadow-sm">
-                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      <span className="text-sm text-muted-foreground">أبحث في المصادر وأُعِد الملخص...</span>
-                    </div>
+                  )}
+                  <div
+                    dir="auto"
+                    className={`max-w-xl rounded-xl px-4 py-3 shadow-sm ${
+                      message.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-card border'
+                    }`}
+                  >
+                    {/* Render message content with markdown interpretation */}
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2" dangerouslySetInnerHTML={{ __html: message.content.replace(/\\n/g, '<br />') }} />
                   </div>
-                )}
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      </div>
+                  {message.role === 'user' && (
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback><User size={21} /></AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex items-start gap-4 justify-start">
+                  <Avatar className="h-9 w-9 border-2 border-primary/20">
+                    <AvatarFallback className='bg-primary text-primary-foreground'><Bot size={21} /></AvatarFallback>
+                  </Avatar>
+                  <div className="bg-card border rounded-xl px-4 py-3 flex items-center gap-2 shadow-sm">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">أبحث في المصادر وأُعِد الملخص...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
       
       {/* Input Form */}
       <div className="mt-4">
