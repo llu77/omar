@@ -42,7 +42,14 @@ export default function Home() {
   const [user, loading] = useAuthState(auth);
   const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+
+  if (loading || user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="w-12 h-12 animate-spin text-primary" />
