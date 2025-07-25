@@ -24,9 +24,9 @@ import {
   FileText, Image as ImageIcon, Mic, Volume2, Translate, Star,
   MoreHorizontal, Download, Eye, Lock, Unlock, Users, Calendar,
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
-  FileVideo, FilePdf, FileAudio, Copy, Reply, Forward,
+  FileVideo, FileAudio2, Copy, Reply, Forward,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
-  Maximize2, Minimize2, VolumeOff, UserCheck, Activity
+  Maximize2, Minimize2, VolumeOff, UserCheck, Activity, File, FileUp
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
@@ -155,9 +155,9 @@ const formatFileSize = (bytes: number): string => {
 const getFileIcon = (fileType: string) => {
   if (fileType.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
   if (fileType.startsWith('video/')) return <FileVideo className="h-4 w-4" />;
-  if (fileType.startsWith('audio/')) return <FileAudio className="h-4 w-4" />;
-  if (fileType === 'application/pdf') return <FilePdf className="h-4 w-4" />;
-  return <FileText className="h-4 w-4" />;
+  if (fileType.startsWith('audio/')) return <FileAudio2 className="h-4 w-4" />;
+  if (fileType === 'application/pdf') return <FileText className="h-4 w-4" />;
+  return <File className="h-4 w-4" />;
 };
 
 const getMedicalPriorityColor = (priority: string) => {
