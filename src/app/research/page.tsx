@@ -9,33 +9,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, BookOpen, MessageSquare, Send, Bot, User, FlaskConical, CornerDownLeft, Search, FileText, Star, Sparkles, Brain, Activity } from 'lucide-react';
-import { AIMessage } from '@/types';
+import type { AIMessage } from '@/types';
 
 const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen: boolean, setIsOpen: (open: boolean) => void, initialSummary: string, topic: string }) => {
-  const systemMessage: AIMessage = {
-    id: '0',
-    role: 'system',
-    content: `You are a research expert. The user wants to discuss the following research summary on "${topic}". Engage with them scientifically and medically, without bias, and provide the best reliable answers.\n\nHere is the summary:\n${initialSummary}`
-  };
+  const systemMessageContent = `You are a research expert. The user wants to discuss the following research summary on "${topic}". Engage with them scientifically and medically, without bias, and provide the best reliable answers.\n\nHere is the summary:\n${initialSummary}`;
   
-  const initialModalMessages: AIMessage[] = [
-    { id: '1', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
-  ];
-
   const { messages, setMessages, input, handleInputChange, handleSubmit: originalHandleSubmit, isLoading } = useChat({
     api: '/api/discuss',
+    initialMessages: [
+      { id: '1', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
+    ]
   });
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // When the modal opens, set the initial messages.
-    if (isOpen) {
-      setMessages(initialModalMessages);
-    }
-  }, [isOpen, setMessages]);
-
-  useEffect(() => {
+    // Scroll to bottom on new message
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (viewport) {
@@ -47,17 +36,14 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!input.trim()) return;
-
-    const fullHistory: AIMessage[] = [
-      systemMessage,
-      ...messages,
-      { id: Date.now().toString(), role: 'user', content: input },
-    ];
     
+    // Let useChat handle the messages, just send the system prompt as extra data
     originalHandleSubmit(e, {
       options: {
         body: {
-          messages: fullHistory,
+          data: {
+            systemMessage: systemMessageContent,
+          }
         },
       },
     });
@@ -78,7 +64,7 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
         <div className="flex-1 overflow-y-auto p-6">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
             <div className="space-y-4 pr-4">
-              {messages.filter(m => m.role !== 'system').map((message) => (
+              {messages.map((message) => (
                 <div
                   key={message.id}
                   className={`flex items-start gap-3 ${
@@ -169,11 +155,11 @@ const MedicalResearchSummarizer = () => {
   };
   
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      const form = e.currentTarget.closest('form');
-      if (form) {
-         handleFormSubmit(new (window as any).Event('submit', { bubbles: true, cancelable: true }));
-      }
+    if (e.key === 'Enter' && !isLoading) {
+       const form = e.currentTarget.closest('form');
+       if(form) {
+           form.requestSubmit();
+       }
     }
   };
   
@@ -181,8 +167,9 @@ const MedicalResearchSummarizer = () => {
 
   return (
     <>
-      <div className="relative min-h-[calc(100vh-10rem)] overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900 flex flex-col">
-        {/* Background Effects */}
+      <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-teal-900">
+      
+        {/* خلفية متحركة */}
         <div className="absolute inset-0 overflow-hidden -z-10">
           <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-blue-500 rounded-full filter blur-3xl opacity-10 animate-pulse"></div>
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-teal-500 rounded-full filter blur-3xl opacity-10 animate-pulse animation-delay-2000"></div>
@@ -190,76 +177,80 @@ const MedicalResearchSummarizer = () => {
           <div className="medical-grid"></div>
         </div>
 
-        {/* Main Content */}
-        <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col flex-1">
-          {/* Header */}
-          <div className="text-center mb-8 animate-fade-in">
+        {/* المحتوى الرئيسي */}
+        <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col h-[calc(100vh-8rem)]">
+          {/* الهيدر */}
+          <div className="text-center mb-6 animate-fade-in">
             <div className="inline-flex items-center justify-center space-x-4 mb-4">
-              <Brain className="w-10 h-10 text-cyan-300 animate-float" />
-              <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-blue-500/30 to-teal-500/30 rounded-full shadow-lg shadow-blue-500/20">
-                <Sparkles className="w-8 h-8 text-amber-400" />
-              </div>
-              <Activity className="w-10 h-10 text-teal-300 animate-float animation-delay-1000" />
+                <Brain className="w-8 h-8 text-cyan-300 animate-float" />
+                <div className="inline-flex items-center justify-center p-2 bg-gradient-to-r from-blue-500/30 to-teal-500/30 rounded-full shadow-lg shadow-blue-500/20">
+                    <Sparkles className="w-6 h-6 text-amber-400" />
+                </div>
+                <Activity className="w-8 h-8 text-teal-300 animate-float animation-delay-1000" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 animate-gradient">
+            <h1 className="text-4xl font-bold text-white mb-2">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 animate-gradient">
                 مساعد البحوث الطبية
-              </span>
+                </span>
             </h1>
-            <p className="text-lg text-blue-200 max-w-2xl mx-auto leading-relaxed">
-              احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة بالذكاء الاصطناعي
+            <p className="text-md text-blue-200 max-w-2xl mx-auto leading-relaxed">
+            احصل على ملخصات احترافية لأحدث الأبحاث الطبية من مصادر موثوقة، معززة بالذكاء الاصطناعي.
             </p>
           </div>
-
-          {/* Chat/Summary Display Area */}
-          <div className="flex-1 flex flex-col justify-center min-h-0">
+          
+          <div className="flex-1 flex flex-col min-h-0">
              {!assistantMessage && !isLoading ? (
-                <div className="text-center text-blue-200/80 p-6">
-                    <BookOpen className="mx-auto h-16 w-16 mb-4" />
-                    <h2 className="mt-4 text-xl font-semibold">ابدأ رحلتك البحثية</h2>
-                    <p className="mt-2 text-md">
-                      اكتب سؤالاً أو موضوعًا لبدء تلخيص الأبحاث العلمية.
-                    </p>
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center text-blue-200/80 p-6">
+                        <BookOpen className="mx-auto h-16 w-16 mb-4" />
+                        <h2 className="mt-4 text-xl font-semibold">ابدأ رحلتك البحثية</h2>
+                        <p className="mt-2 text-md">
+                        اكتب سؤالاً أو موضوعًا لبدء تلخيص الأبحاث العلمية.
+                        </p>
+                    </div>
                 </div>
              ) : (
                 <ScrollArea className="h-full">
-                    {assistantMessage && (
-                        <div className="max-w-4xl mx-auto animate-slide-up">
-                            <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 shadow-2xl border border-cyan-500/20">
-                              <div className="flex items-center mb-6 pb-4 border-b border-cyan-500/20">
-                                <BookOpen className="w-7 h-7 text-cyan-400 ml-3" />
-                                <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
-                              </div>
-                              <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
-                                <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\n/g, '<br />') }}/>
-                              </div>
-                              <div className="mt-6 pt-6 border-t border-cyan-500/20">
-                                 <Button size="sm" variant="outline" className="bg-transparent border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => {
-                                     setCurrentSummary(assistantMessage.content);
-                                     setCurrentTopic(input || currentTopic);
-                                     setIsDiscussionModalOpen(true);
-                                   }}>
-                                    <MessageSquare className="ml-2 h-4 w-4" />
-                                    ناقشني حول البحث
-                                  </Button>
-                              </div>
+                    <div className="max-w-4xl mx-auto py-4">
+                        {assistantMessage && (
+                            <div className="animate-slide-up">
+                                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 shadow-2xl border border-cyan-500/20">
+                                <div className="flex items-center mb-6 pb-4 border-b border-cyan-500/20">
+                                    <BookOpen className="w-7 h-7 text-cyan-400 ml-3" />
+                                    <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
+                                </div>
+                                <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
+                                    <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\n/g, '<br />') }}/>
+                                </div>
+                                <div className="mt-6 pt-6 border-t border-cyan-500/20">
+                                    <Button size="sm" variant="outline" className="bg-transparent border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => {
+                                        setCurrentSummary(assistantMessage.content);
+                                        setCurrentTopic(input || currentTopic);
+                                        setIsDiscussionModalOpen(true);
+                                    }}>
+                                        <MessageSquare className="ml-2 h-4 w-4" />
+                                        ناقشني حول البحث
+                                    </Button>
+                                </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                     {isLoading && (
-                        <div className="flex items-center justify-center text-white/80 text-lg gap-4 p-10">
-                          <Loader2 className="animate-spin w-8 h-8" />
-                          <span>وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك...</span>
-                        </div>
-                    )}
+                        )}
+                        {isLoading && (
+                            <div className="flex items-center justify-center text-white/80 text-lg gap-4 p-10">
+                            <Loader2 className="animate-spin w-8 h-8" />
+                            <span>وصّل يقوم الان بالتفكير وتلخيص ابحاث حول موضوعك انتظرني من فضلك...</span>
+                            </div>
+                        )}
+                    </div>
                 </ScrollArea>
              )}
           </div>
 
+
           {/* Input Form */}
-          <div className="mt-auto pt-6">
+          <div className="mt-auto pt-4">
             <form onSubmit={handleFormSubmit} className="max-w-3xl mx-auto">
-              <div className="bg-white/5 backdrop-blur-xl rounded-xl p-4 shadow-2xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300">
+              <div className="bg-white/5 backdrop-blur-xl rounded-xl p-3 shadow-2xl border border-cyan-500/20 hover:border-cyan-400/40 transition-all duration-300">
                 <div className="relative group flex gap-2">
                   <Input
                     type="text"
