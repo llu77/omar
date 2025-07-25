@@ -84,15 +84,13 @@ export default function Header() {
   };
   
   const renderAuthSection = () => {
-    // On the server or before hydration is complete, render a placeholder
+    // On the server, or when loading, or before the client is mounted, render a placeholder.
+    // This ensures the server-rendered HTML matches the initial client-rendered HTML.
     if (!mounted || loading) {
-       return (
-        <div className="flex items-center gap-2">
-            <Skeleton className="h-10 w-10 rounded-full" />
-        </div>
-      );
+       return <Skeleton className="h-10 w-24 rounded-md" />;
     }
 
+    // After mounting and once loading is false, render the actual content.
     if (user) {
       return (
         <>
@@ -133,6 +131,7 @@ export default function Header() {
       );
     }
     
+    // Render for logged-out users
     return (
       <div className="flex items-center gap-2">
         <Button asChild variant="ghost">
@@ -181,7 +180,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
-             {mounted ? (
+            {mounted ? (
               <Button
                 variant="ghost"
                 size="icon"
@@ -191,9 +190,9 @@ export default function Header() {
                 <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
                 <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
               </Button>
-            ) : <Skeleton className="h-10 w-10"/> }
+            ) : <Skeleton className="h-10 w-10 rounded-full"/> }
             
-            {renderAuthSection()}
+            <div className="flex items-center gap-2">{renderAuthSection()}</div>
           </div>
         </div>
 
