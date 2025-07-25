@@ -161,14 +161,6 @@ export default function RetrievePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-           <Alert variant="destructive" className="mb-6 bg-yellow-50 border-yellow-300 text-yellow-800">
-             <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            <AlertTitle className="font-bold">ملاحظة هامة للمطور</AlertTitle>
-            <AlertDescription>
-              لضمان عمل خاصية الحفظ والاستعادة من السحابة، يجب تطبيق قواعد الأمان الموجودة في ملف `firestore.rules` على قاعدة بيانات Firestore في مشروعك على Firebase.
-            </AlertDescription>
-          </Alert>
-
           <form onSubmit={handleRetrieve} className="space-y-2">
             <label htmlFor="fileNumber" className="text-sm font-medium">
               البحث برقم الملف
