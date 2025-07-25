@@ -24,7 +24,7 @@ import * as z from 'zod';
 
 const goalFormSchema = z.object({
   title: z.string().min(5, "يجب أن يكون العنوان 5 أحرف على الأقل."),
-  fileNumber: z.string().min(5, "رقم ملف المريض مطلوب."),
+  patient: z.string().min(2, "اسم المريض مطلوب."),
   category: z.enum(['medical', 'functional'], {
     required_error: "فئة الهدف مطلوبة.",
   }),
@@ -63,7 +63,7 @@ export default function GoalsPage() {
     resolver: zodResolver(goalFormSchema),
     defaultValues: {
       title: "",
-      fileNumber: "",
+      patient: "",
       category: undefined,
     },
   });
@@ -75,38 +75,33 @@ export default function GoalsPage() {
   }, [user, loading, router]);
   
   const handleAddGoal = async (values: GoalFormValues) => {
-    if (!user || userDataLoading) {
-        toast({ variant: "destructive", title: "خطأ", description: "يجب تسجيل الدخول وجلب بيانات المستخدم لإضافة هدف." });
-        return;
-    }
+    if (!user) return;
     setIsSubmitting(true);
     try {
-        await addDoc(goalsCollectionRef, {
-            ...values,
-            status: 'on_track',
-            progress: 0,
-            createdBy: user.uid,
-            creatorName: userData?.name || 'مستخدم غير معروف',
-            creatorUserCode: userData?.userCode || 'N/A',
-            createdAt: serverTimestamp(),
-        });
+      await addDoc(goalsCollectionRef, {
+        ...values,
+        status: 'on_track',
+        progress: 0,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+      });
 
-        toast({
-            title: "نجاح",
-            description: "تمت إضافة الهدف المشترك بنجاح.",
-        });
-        form.reset();
-        setIsModalOpen(false);
+      toast({
+        title: "نجاح",
+        description: "تمت إضافة الهدف المشترك بنجاح.",
+      });
+      form.reset();
+      setIsModalOpen(false);
 
     } catch (error) {
-        console.error("Error adding goal: ", error);
-        toast({
-            variant: 'destructive',
-            title: "خطأ",
-            description: "فشلت إضافة الهدف. يرجى المحاولة مرة أخرى.",
-        });
+      console.error("Error adding goal: ", error);
+      toast({
+        variant: 'destructive',
+        title: "خطأ",
+        description: "فشلت إضافة الهدف. يرجى المحاولة مرة أخرى.",
+      });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -159,11 +154,11 @@ export default function GoalsPage() {
                                 <FormMessage />
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="fileNumber" render={({ field }) => (
+                        <FormField control={form.control} name="patient" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>رقم ملف المريض</FormLabel>
+                                <FormLabel>اسم المريض</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="WSL-2025-..." {...field} />
+                                    <Input placeholder="أدخل اسم المريض" {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -185,8 +180,8 @@ export default function GoalsPage() {
                             <DialogClose asChild>
                                 <Button type="button" variant="secondary">إلغاء</Button>
                             </DialogClose>
-                            <Button type="submit" disabled={isSubmitting || userDataLoading}>
-                                {(isSubmitting || userDataLoading) && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                                 حفظ الهدف
                             </Button>
                         </DialogFooter>
@@ -226,12 +221,7 @@ export default function GoalsPage() {
                         <div className={`h-8 w-8 flex items-center justify-center rounded-lg ${categoryInfo.color}`}>
                              {categoryInfo.icon}
                         </div>
-                        <div>
-                            <CardTitle className="text-base font-bold leading-tight">{goal.title}</CardTitle>
-                            <CardDescription className="flex items-center gap-1 font-mono text-xs">
-                                <FileText className="w-3 h-3"/>{goal.fileNumber}
-                            </CardDescription>
-                        </div>
+                        <CardTitle className="text-base font-bold leading-tight">{goal.title}</CardTitle>
                     </div>
                      {goal.status === 'achieved' ? 
                      <CheckCircle className="h-6 w-6 text-primary" /> : 
@@ -239,6 +229,10 @@ export default function GoalsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-3">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                     <User className="h-4 w-4"/>
+                     <span>{goal.patient}</span>
+                  </div>
                   <div>
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-sm font-medium">التقدم</span>
@@ -251,10 +245,7 @@ export default function GoalsPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                     <User className="h-3 w-3" />
-                     <span>{goal.creatorName} ({goal.creatorUserCode})</span>
-                  </div>
+                    {/* Placeholder for creator info */}
                 </CardFooter>
               </Card>
             )

@@ -93,14 +93,12 @@ export interface CommunicationChannel {
 export interface Goal {
   id: string;
   title: string;
-  fileNumber: string;
+  patient: string;
   category: 'medical' | 'functional';
   status: 'on_track' | 'needs_attention' | 'at_risk' | 'achieved';
   progress: number;
-  createdAt?: any;
+  createdAt: any;
   createdBy: string;
-  creatorName: string;
-  creatorUserCode: string;
 }
 
 
