@@ -184,7 +184,7 @@ const MedicalResearchSummarizer = () => {
             </p>
           </div>
           
-          <div className="flex-1 flex flex-col min-h-0">
+           <div className="flex-1 min-h-0 flex flex-col">
              <div className="flex-1 min-h-0">
                 <ScrollArea className="h-full">
                     <div className="max-w-4xl mx-auto py-4">
@@ -205,7 +205,7 @@ const MedicalResearchSummarizer = () => {
                                     <BookOpen className="w-7 h-7 text-cyan-400 ml-3" />
                                     <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
                                 </div>
-                                <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
+                                <div dir="rtl" className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200 text-right">
                                     <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\\n/g, '<br />') }}/>
                                 </div>
                                 <div className="mt-6 pt-6 border-t border-cyan-500/20">
