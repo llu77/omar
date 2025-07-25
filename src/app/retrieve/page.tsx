@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useTransition, useMemo } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { db, auth } from '@/lib/firebase';
 import { Skeleton } from "@/components/ui/skeleton";
-import { collection, query, getDocs, Timestamp, orderBy, where, limit } from 'firebase/firestore';
+import { collection, query, getDocs, Timestamp, orderBy, where, limit, doc, getDoc } from 'firebase/firestore';
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from 'date-fns';
 import { arSA } from 'date-fns/locale';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash, AlertTriangle } from "lucide-react";
+import { Cloud, Database, FileSearch, Loader2, Search, ServerCrash } from "lucide-react";
 import { useAuthState } from "react-firebase-hooks/auth";
 
 interface SavedReport {
@@ -36,103 +36,103 @@ SourceIcon.displayName = 'SourceIcon';
 
 export default function RetrievePage() {
   const [fileNumber, setFileNumber] = useState("");
-  const [allReports, setAllReports] = useState<SavedReport[]>([]);
+  const [cloudReports, setCloudReports] = useState<SavedReport[]>([]);
+  const [localReports, setLocalReports] = useState<SavedReport[]>([]);
   const [isSearching, startSearchTransition] = useTransition();
-  const [isLoadingReports, setIsLoadingReports] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
-  const [user, loading] = useAuthState(auth);
+  const [user, authLoading] = useAuthState(auth);
 
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
-    loadAllReports();
-  }, [user, loading]);
-  
+    loadInitialReports();
+  }, [user, authLoading, router]);
 
-  const loadAllReports = async () => {
-    setIsLoadingReports(true);
+  const loadInitialReports = async () => {
+    setIsLoading(true);
     setError(null);
-  
     try {
-      // Step 1: Fetch cloud reports from the global 'reports' collection
-      const cloudReportsPromise = getDocs(query(collection(db, 'reports'), orderBy('createdAt', 'desc'), limit(50)));
+      // Fetch recent cloud reports
+      const cloudQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'), limit(50));
+      const cloudSnapshot = await getDocs(cloudQuery);
+      const fetchedCloudReports = cloudSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          fileNumber: doc.id,
+          name: data.name,
+          createdAt: (data.createdAt as Timestamp)?.toDate() || new Date(),
+          source: 'cloud' as const,
+        };
+      });
+      setCloudReports(fetchedCloudReports);
       
-      // Step 2: Fetch local reports
-      const localReports: SavedReport[] = [];
-      if (typeof window !== 'undefined') {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.startsWith('report-')) {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '{}');
-              if (data.fileNumber && data.name) {
-                const createdAt = data.createdAt ? new Date(data.createdAt) : new Date(0);
-                localReports.push({
-                  fileNumber: data.fileNumber,
-                  name: data.name,
-                  createdAt: createdAt,
-                  source: 'local',
-                });
-              }
-            } catch (e) {
-              console.error(`Error parsing local report from key ${key}:`, e);
+      // Fetch local reports
+      const local: SavedReport[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('report-')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            if (data.fileNumber && data.name) {
+              local.push({
+                fileNumber: data.fileNumber,
+                name: data.name,
+                createdAt: data.createdAt ? new Date(data.createdAt) : new Date(0),
+                source: 'local',
+              });
             }
+          } catch (e) {
+            console.warn(`Could not parse local report from key ${key}:`, e);
           }
         }
       }
-      
-      // Step 3: Wait for cloud reports and process
-      const cloudSnapshot = await cloudReportsPromise;
-      const cloudReportsMap = new Map<string, SavedReport>();
-      cloudSnapshot.forEach((doc) => {
-        const data = doc.data();
-        const createdAt = (data.createdAt as Timestamp)?.toDate() || new Date();
-        cloudReportsMap.set(doc.id, {
-          fileNumber: doc.id,
-          name: data.name,
-          createdAt: createdAt,
-          source: 'cloud',
-        });
-      });
-      
-      // Step 4: Merge local reports, giving priority to cloud versions
-      const localReportsMap = new Map(localReports.map(r => [r.fileNumber, r]));
-      
-      localReportsMap.forEach((value, key) => {
-        if (!cloudReportsMap.has(key)) {
-          cloudReportsMap.set(key, value);
-        }
-      });
-      
-      // Step 5: Sort and set the final list
-      const combinedReports = Array.from(cloudReportsMap.values());
-      combinedReports.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      
-      setAllReports(combinedReports);
+      setLocalReports(local.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
 
-    } catch (firebaseError: any) {
-      console.error('Error loading reports:', firebaseError);
-      setError("فشل تحميل التقارير المحفوظة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات. يرجى التأكد من تطبيق قواعد الأمان الصحيحة في Firestore.");
+    } catch (err: any) {
+      console.error("Error loading reports:", err);
+      setError("فشل تحميل التقارير المحفوظة. قد تكون هناك مشكلة في الاتصال أو الصلاحيات.");
     } finally {
-      setIsLoadingReports(false);
+      setIsLoading(false);
     }
   };
 
-
   const handleRetrieve = (e: React.FormEvent) => {
     e.preventDefault();
-    startSearchTransition(() => {
-      const trimmedFileNumber = fileNumber.trim();
-      if (!trimmedFileNumber) {
-        toast({ variant: "destructive", title: "خطأ", description: "الرجاء إدخال رقم الملف." });
-        return;
+    const trimmedFileNumber = fileNumber.trim();
+    if (!trimmedFileNumber) {
+      toast({ variant: "destructive", title: "خطأ", description: "الرجاء إدخال رقم الملف." });
+      return;
+    }
+
+    startSearchTransition(async () => {
+      try {
+        const reportDocRef = doc(db, "reports", trimmedFileNumber);
+        const reportDoc = await getDoc(reportDocRef);
+        
+        let reportExists = reportDoc.exists();
+        if (!reportExists) {
+            const localData = localStorage.getItem(`report-${trimmedFileNumber}`);
+            if(localData) {
+                reportExists = true;
+            }
+        }
+
+        if (reportExists) {
+          toast({ title: "تم العثور على التقرير", description: "جاري استعراض التقرير..." });
+          router.push(`/report/${trimmedFileNumber}`);
+        } else {
+          toast({ variant: "destructive", title: "لم يتم العثور عليه", description: "لا يوجد تقرير بهذا الرقم محلياً أو في السحابة." });
+        }
+      } catch (err) {
+        console.error("Error retrieving report:", err);
+        toast({ variant: "destructive", title: "خطأ", description: "حدث خطأ أثناء البحث عن التقرير." });
       }
-      router.push(`/report/${trimmedFileNumber}`);
     });
   };
 
@@ -140,7 +140,34 @@ export default function RetrievePage() {
     router.push(`/report/${reportFileNumber}`);
   };
 
-  if (loading) {
+  const renderReportList = (reports: SavedReport[]) => (
+    <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-2">
+      {reports.map((report) => (
+        <Card 
+          key={report.fileNumber} 
+          className="cursor-pointer hover:bg-secondary/50 transition-colors"
+          onClick={() => handleQuickAccess(report.fileNumber)}
+        >
+          <CardContent className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-4">
+              <SourceIcon source={report.source} />
+              <div>
+                <p className="font-semibold">{report.name}</p>
+                <div className="text-sm text-muted-foreground">
+                  <Badge variant="outline" className="font-mono">{report.fileNumber}</Badge>
+                </div>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {report.createdAt.getFullYear() > 2000 ? formatDistanceToNow(report.createdAt, { addSuffix: true, locale: arSA }) : 'بدون تاريخ'}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  if (authLoading) {
     return (
       <div className="max-w-4xl mx-auto space-y-8">
         <Skeleton className="h-[450px] w-full" />
@@ -184,52 +211,46 @@ export default function RetrievePage() {
           
           <Separator className="my-6" />
 
-          <div>
-            <h3 className="text-lg font-semibold mb-4">التقارير الأخيرة المتاحة</h3>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <ServerCrash className="h-4 w-4"/>
-                <AlertTitle>خطأ في الاتصال</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {isLoadingReports ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-              </div>
-            ) : allReports.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                لا توجد تقارير محفوظة بعد.
-              </div>
-            ) : (
-              <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
-                {allReports.map((report) => (
-                  <Card 
-                    key={report.fileNumber} 
-                    className="cursor-pointer hover:bg-secondary/50 transition-colors"
-                    onClick={() => handleQuickAccess(report.fileNumber)}
-                  >
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-4">
-                        <SourceIcon source={report.source} />
-                        <div>
-                          <p className="font-semibold">{report.name}</p>
-                          <div className="text-sm text-muted-foreground">
-                            <Badge variant="outline" className="font-mono">{report.fileNumber}</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {report.createdAt.getFullYear() > 2000 ? formatDistanceToNow(report.createdAt, { addSuffix: true, locale: arSA }) : 'بدون تاريخ'}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <ServerCrash className="h-4 w-4"/>
+              <AlertTitle>خطأ في الاتصال</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {isLoading ? (
+             <div className="space-y-4">
+               <Skeleton className="h-8 w-1/3" />
+               <Skeleton className="h-16 w-full" />
+               <Skeleton className="h-16 w-full" />
+             </div>
+          ) : (
+            <>
+              {cloudReports.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><Cloud className="h-5 w-5 text-blue-500" />التقارير المشتركة (السحابة)</h3>
+                  {renderReportList(cloudReports)}
+                </div>
+              )}
+
+              {localReports.length > 0 && (
+                <div className="mt-6">
+                   <h3 className="text-lg font-semibold mb-2 flex items-center gap-2"><Database className="h-5 w-5 text-green-500"/>التقارير المحفوظة محلياً</h3>
+                   {renderReportList(localReports)}
+                </div>
+              )}
+
+              {cloudReports.length === 0 && localReports.length === 0 && (
+                 <div className="text-center text-muted-foreground py-8">
+                   لا توجد تقارير محفوظة بعد.
+                 </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
