@@ -24,7 +24,7 @@ import {
   FileText, Image as ImageIcon, Mic, Volume2, Translate, Star,
   MoreHorizontal, Download, Eye, Lock, Unlock, Users, Calendar,
   Stethoscope, UserX, Bell, BellOff, Archive, Trash2, Flag,
-  FileImage, FileVideo, FilePdf, FileAudio, Copy, Reply, Forward,
+  FileVideo, FilePdf, FileAudio, Copy, Reply, Forward,
   Settings, Info, VideoOff, MicOff, PhoneOff, ScreenShare,
   Maximize2, Minimize2, VolumeOff, UserCheck, Activity
 } from 'lucide-react';
