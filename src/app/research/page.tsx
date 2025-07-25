@@ -14,17 +14,20 @@ import type { AIMessage } from '@/types';
 const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen: boolean, setIsOpen: (open: boolean) => void, initialSummary: string, topic: string }) => {
   const systemMessageContent = `You are a research expert. The user wants to discuss the following research summary on "${topic}". Engage with them scientifically and medically, without bias, and provide the best reliable answers.\n\nHere is the summary:\n${initialSummary}`;
   
-  const { messages, setMessages, input, handleInputChange, handleSubmit: originalHandleSubmit, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit: originalHandleSubmit, isLoading } = useChat({
     api: '/api/discuss',
     initialMessages: [
-      { id: '1', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
-    ]
+      { id: 'system-initial', role: 'system', content: systemMessageContent },
+      { id: 'assistant-initial', role: 'assistant', content: 'أهلاً بك. أنا جاهز لمناقشة هذا الملخص البحثي معك. ما هي استفساراتك؟' }
+    ],
+    onFinish: () => {
+      // Logic after response finishes
+    }
   });
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Scroll to bottom on new message
     if (scrollAreaRef.current) {
       const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
       if (viewport) {
@@ -37,7 +40,6 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
     e.preventDefault();
     if (!input.trim()) return;
     
-    // Let useChat handle the messages, just send the system prompt as extra data
     originalHandleSubmit(e, {
       options: {
         body: {
@@ -64,7 +66,7 @@ const DiscussionModal = ({ isOpen, setIsOpen, initialSummary, topic }: { isOpen:
         <div className="flex-1 overflow-y-auto p-6">
           <ScrollArea className="h-full" ref={scrollAreaRef}>
             <div className="space-y-4 pr-4">
-              {messages.map((message) => (
+              {messages.filter(m => m.role !== 'system').map((message) => (
                 <div
                   key={message.id}
                   className={`flex items-start gap-3 ${
@@ -218,7 +220,7 @@ const MedicalResearchSummarizer = () => {
                                     <h2 className="text-2xl font-bold text-white">نتائج البحث عن: {currentTopic}</h2>
                                 </div>
                                 <div className="prose prose-invert max-w-none prose-p:my-2 prose-headings:text-cyan-200">
-                                    <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\n/g, '<br />') }}/>
+                                    <div className="text-cyan-100 leading-relaxed whitespace-pre-wrap text-lg" dangerouslySetInnerHTML={{ __html: assistantMessage.content.replace(/\\n/g, '<br />') }}/>
                                 </div>
                                 <div className="mt-6 pt-6 border-t border-cyan-500/20">
                                     <Button size="sm" variant="outline" className="bg-transparent border-cyan-400/50 text-cyan-300 hover:bg-cyan-400/10 hover:text-cyan-200" onClick={() => {
