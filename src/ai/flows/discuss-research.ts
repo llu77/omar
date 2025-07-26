@@ -5,33 +5,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
 });
 
-interface DiscussResearchInput {
-  question: string;
-  history: Array<{
-    role: string;
-    content: string;
-  }>;
-}
-
-export async function discussResearch(input: DiscussResearchInput): Promise<Response> {
+export async function discussResearch(input: any): Promise<Response> {
   try {
     const { question, history } = input;
     
-    const systemMessage = history.find(m => m.role === "system");
-    const conversationHistory = history.filter(m => m.role !== "system");
+    const messages: any[] = [];
     
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [];
-    
+    const systemMessage = history?.find((m: any) => m.role === "system");
     if (systemMessage) {
       messages.push({ role: "system", content: systemMessage.content });
     }
     
-    conversationHistory.forEach(msg => {
+    const conversationHistory = history?.filter((m: any) => m.role !== "system") || [];
+    conversationHistory.forEach((msg: any) => {
       const role = msg.role === "model" ? "assistant" : msg.role;
-      messages.push({ 
-        role: role as "user" | "assistant" | "system", 
-        content: msg.content 
-      });
+      messages.push({ role, content: msg.content });
     });
     
     messages.push({ role: "user", content: question });
@@ -48,25 +36,26 @@ export async function discussResearch(input: DiscussResearchInput): Promise<Resp
       async start(controller) {
         try {
           for await (const chunk of completion) {
-            const content = chunk.choices[0]?.delta?.content;
-            if (content) {
-              controller.enqueue(encoder.encode(content));
+            const text = chunk.choices[0]?.delta?.content || "";
+            if (text) {
+              controller.enqueue(encoder.encode(text));
             }
           }
         } catch (error) {
-          controller.error(error);
+          console.error("Stream error:", error);
         } finally {
           controller.close();
         }
       },
     });
 
-    return new StreamingTextResponse(stream);
+    return new StreamingTextResponse(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      }
+    });
   } catch (error) {
     console.error("[DiscussResearch] Error:", error);
-    return new Response(
-      "⚠️ عذراً، حدث خطأ أثناء معالجة سؤالك",
-      { status: 500 }
-    );
+    return new Response("عذراً، حدث خطأ أثناء معالجة سؤالك", { status: 500 });
   }
 }
