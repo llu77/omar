@@ -189,7 +189,7 @@ export default function GoalsPage() {
               disabled={isSearching}
             />
             <Button type="submit" disabled={isSearching}>
-              {isSearching ? <Loader2 className="ml-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
+              {isSearching ? <Loader2 className="ml-2 h-4 w-4 animate-spin"/> : <Search className="ml-2 h-4 w-4" />}
               بحث
             </Button>
           </form>
