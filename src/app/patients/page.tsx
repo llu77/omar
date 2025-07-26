@@ -1,91 +1,47 @@
 "use client";
 
-import { useState, useTransition } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { useCollection } from 'react-firebase-hooks/firestore';
 import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useToast } from '@/hooks/use-toast';
-import { Search, Loader2, User, FileText, Target, AlertCircle, TrendingUp, CheckCircle, Activity, Dumbbell, Calendar, FileSearch } from 'lucide-react';
-import type { PatientDataForAI, Goal } from '@/types';
+import { Search, User, FileText, Calendar, ServerCrash, Users } from 'lucide-react';
+import type { PatientDataForAI } from '@/types';
 import { format } from 'date-fns';
 import { arSA } from 'date-fns/locale';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 
 interface ReportSummary {
     fileNumber: string;
     createdAt: Date;
     name: string;
-    age: number;
-    gender: "male" | "female";
-    symptoms: string;
 }
 
-const statusMap = {
-  on_track: { text: 'في المسار الصحيح', icon: <TrendingUp className="h-4 w-4 text-green-500"/>, color: 'text-green-600' },
-  needs_attention: { text: 'يحتاج متابعة', icon: <AlertCircle className="h-4 w-4 text-yellow-500"/>, color: 'text-yellow-600' },
-  at_risk: { text: 'في خطر', icon: <AlertCircle className="h-4 w-4 text-red-500"/>, color: 'text-red-600' },
-  achieved: { text: 'تم تحقيقه', icon: <CheckCircle className="h-4 w-4 text-blue-500"/>, color: 'text-blue-600' },
-};
-
-const categoryMap = {
-    medical: { text: 'هدف طبي', icon: <Activity className="h-5 w-5 text-blue-600"/>, color: 'bg-blue-100 dark:bg-blue-900' },
-    functional: { text: 'هدف وظيفي', icon: <Dumbbell className="h-5 w-5 text-green-600"/>, color: 'bg-green-100 dark:bg-green-900'},
-}
-
-export default function PatientsPage() {
+export default function PatientsListPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [user, authLoading] = useAuthState(auth);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, startSearchTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   
-  const [patientData, setPatientData] = useState<Partial<PatientDataForAI> | null>(null);
-  const [reports, setReports] = useState<ReportSummary[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [wasSearched, setWasSearched] = useState(false);
+  const [reportsCollection, reportsLoading, reportsError] = useCollection(
+    query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+  );
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) {
-      toast({ variant: 'destructive', title: 'خطأ', description: 'يرجى إدخال رقم ملف للبحث.' });
-      return;
-    }
+  const uniquePatients = useMemo(() => {
+    if (!reportsCollection) return [];
+    
+    const patientMap = new Map<string, ReportSummary>();
 
-    startSearchTransition(async () => {
-      setError(null);
-      setPatientData(null);
-      setReports([]);
-      setGoals([]);
-      setWasSearched(true);
+    reportsCollection.docs.forEach(doc => {
+        const data = doc.data();
+        const fileNumber = data.fileNumber;
 
-      try {
-        const fileNumberToSearch = searchQuery.trim();
-
-        // Fetch reports and goals in parallel
-        const reportsQuery = query(collection(db, 'reports'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
-        const goalsQuery = query(collection(db, 'goals'), where('fileNumber', '==', fileNumberToSearch), orderBy('createdAt', 'desc'));
-
-        const [reportsSnapshot, goalsSnapshot] = await Promise.all([
-            getDocs(reportsQuery),
-            getDocs(goalsQuery)
-        ]);
-
-        if (reportsSnapshot.empty && goalsSnapshot.empty) {
-          setError('لم يتم العثور على أي تقارير أو أهداف للمريض بهذا الرقم.');
-          return;
-        }
-        
-        const fetchedReports = reportsSnapshot.docs.map(doc => {
-            const data = doc.data();
+        if (!patientMap.has(fileNumber)) {
             let createdAtDate: Date;
             if (data.createdAt instanceof Timestamp) {
                 createdAtDate = data.createdAt.toDate();
@@ -94,142 +50,41 @@ export default function PatientsPage() {
             } else {
                 createdAtDate = new Date(); // Fallback
             }
-            return {
-                ...data,
-                fileNumber: data.fileNumber,
-                createdAt: createdAtDate,
-            } as ReportSummary;
-        });
-        setReports(fetchedReports);
-        
-        const fetchedGoals = goalsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Goal));
-        setGoals(fetchedGoals);
 
-        // Extract patient info from the first available source
-        if (fetchedReports.length > 0) {
-            setPatientData(fetchedReports[0]);
-        } else if (fetchedGoals.length > 0) {
-            setPatientData({
-                fileNumber: fetchedGoals[0].fileNumber,
-                name: fetchedGoals[0].patient,
+            patientMap.set(fileNumber, {
+                fileNumber: fileNumber,
+                name: data.name,
+                createdAt: createdAtDate,
             });
         }
-
-      } catch (err) {
-        console.error('Error searching for patient:', err);
-        setError('حدث خطأ أثناء البحث. يرجى التحقق من اتصالك والمحاولة مرة أخرى.');
-      }
     });
-  };
 
-  const renderPatientCard = () => (
-    <Card className="mb-8">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-3 text-primary">
-          <User className="h-6 w-6"/>
-          ملف المريض
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
-        <div>
-          <p className="text-sm text-muted-foreground">الاسم</p>
-          <p className="font-semibold">{patientData?.name || 'غير متوفر'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">العمر</p>
-          <p className="font-semibold">{patientData?.age || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">الجنس</p>
-          <p className="font-semibold">{patientData?.gender === 'male' ? 'ذكر' : patientData?.gender === 'female' ? 'أنثى' : 'N/A'}</p>
-        </div>
-        <div className="col-span-2 md:col-span-3">
-          <p className="text-sm text-muted-foreground">الأعراض الرئيسية</p>
-          <p className="font-semibold">{patientData?.symptoms || 'غير متوفرة في هذا الملف'}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+    return Array.from(patientMap.values());
+  }, [reportsCollection]);
 
-  const renderReportsSection = () => (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold flex items-center gap-2">
-        <FileText className="h-6 w-6 text-primary"/>
-        التقارير ({reports.length})
-      </h2>
-      {reports.length > 0 ? (
-        reports.map(report => (
-          <Card 
-            key={report.fileNumber}
-            className="hover:bg-secondary/50 cursor-pointer transition-colors"
-            onClick={() => router.push(`/report/${report.fileNumber}`)}
-          >
-            <CardContent className="p-4 flex items-center justify-between">
-              <p className="font-semibold">التقرير الشامل</p>
-              <div className="text-sm text-muted-foreground flex items-center gap-2">
-                <Calendar className="h-4 w-4"/>
-                {format(report.createdAt, 'd MMMM yyyy', { locale: arSA })}
-              </div>
-            </CardContent>
-          </Card>
-        ))
-      ) : (
-        <p className="text-muted-foreground">لا توجد تقارير لهذا المريض.</p>
-      )}
-    </div>
-  );
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) return uniquePatients;
+    
+    return uniquePatients.filter(patient => 
+      patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patient.fileNumber.includes(searchQuery)
+    );
+  }, [searchQuery, uniquePatients]);
 
-  const renderGoalsSection = () => (
-     <div className="space-y-4">
-      <h2 className="text-2xl font-bold flex items-center gap-2">
-        <Target className="h-6 w-6 text-primary"/>
-        الأهداف المشتركة ({goals.length})
-      </h2>
-       {goals.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {goals.map(goal => {
-              const statusInfo = statusMap[goal.status as keyof typeof statusMap];
-              const categoryInfo = categoryMap[goal.category as keyof typeof categoryMap];
-              return (
-                <Card key={goal.id} className="flex flex-col">
-                  <CardHeader className="pb-4">
-                     <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                            <div className={`h-8 w-8 flex items-center justify-center rounded-lg ${categoryInfo.color}`}>
-                                {categoryInfo.icon}
-                            </div>
-                            <CardTitle className="text-base font-bold leading-tight">{goal.title}</CardTitle>
-                        </div>
-                        <Badge variant={statusInfo.color.includes('red') ? 'destructive' : 'outline'} className={statusInfo.color}>
-                          {statusInfo.text}
-                        </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-grow">
-                     <Progress value={goal.progress} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1 text-right">{goal.progress}% مكتمل</p>
-                  </CardContent>
-                   <CardFooter className="text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                          <User className="h-3 w-3" />
-                          <span>أضيف بواسطة: {goal.creatorName || 'مستخدم غير معروف'} ({goal.creatorUserCode || 'N/A'})</span>
-                      </div>
-                  </CardFooter>
-                </Card>
-              )
-          })}
-        </div>
-       ) : (
-        <p className="text-muted-foreground">لا توجد أهداف محددة لهذا المريض.</p>
-       )}
-    </div>
-  );
+  useEffect(() => {
+    if (!authLoading && !user) {
+        router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
-  if (authLoading) {
+  if (authLoading || reportsLoading) {
       return (
           <div className="max-w-4xl mx-auto space-y-6">
               <Skeleton className="h-24 w-full"/>
-              <Skeleton className="h-48 w-full"/>
+              <Skeleton className="h-12 w-full"/>
+              <Skeleton className="h-20 w-full"/>
+              <Skeleton className="h-20 w-full"/>
+              <Skeleton className="h-20 w-full"/>
           </div>
       )
   }
@@ -238,58 +93,73 @@ export default function PatientsPage() {
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in-50">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">البحث عن ملف مريض</CardTitle>
-          <CardDescription>أدخل رقم الملف لعرض جميع البيانات والتقارير والأهداف المتعلقة بالمريض.</CardDescription>
+          <CardTitle className="text-2xl font-bold flex items-center gap-3">
+            <Users className="h-6 w-6 text-primary" />
+            قائمة المرضى
+          </CardTitle>
+          <CardDescription>
+            تصفح جميع المرضى المسجلين في النظام أو ابحث بالاسم أو رقم الملف.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="أدخل رقم الملف هنا..."
-              className="text-left font-mono"
-              dir="ltr"
-              disabled={isSearching}
+              placeholder="ابحث عن مريض..."
+              className="pl-10"
             />
-            <Button type="submit" disabled={isSearching}>
-              {isSearching ? <Loader2 className="ml-2 h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
-              بحث
-            </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
 
-      {isSearching && (
-        <div className="space-y-6">
-            <Skeleton className="h-32 w-full"/>
-            <Skeleton className="h-24 w-full"/>
-            <Skeleton className="h-24 w-full"/>
-        </div>
-      )}
-
-      {!isSearching && wasSearched && (
-        error ? (
+      {reportsError && (
           <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>خطأ في البحث</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+            <ServerCrash className="h-4 w-4" />
+            <AlertTitle>خطأ في تحميل البيانات</AlertTitle>
+            <AlertDescription>
+                فشل الاتصال بقاعدة البيانات. يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.
+                ({reportsError.message})
+            </AlertDescription>
           </Alert>
-        ) : patientData ? (
-          <div className="space-y-8 animate-in fade-in-50">
-            {renderPatientCard()}
-            {reports.length > 0 && renderReportsSection()}
-            {goals.length > 0 && renderGoalsSection()}
-          </div>
-        ) : null
       )}
 
-      {!wasSearched && !isSearching && (
-        <div className="text-center py-16 border-2 border-dashed rounded-lg">
-            <FileSearch className="mx-auto h-12 w-12 text-muted-foreground"/>
-            <h3 className="mt-4 text-lg font-medium">ابدأ البحث</h3>
-            <p className="mt-1 text-sm text-muted-foreground">أدخل رقم ملف المريض في الحقل أعلاه للبدء.</p>
-        </div>
-      )}
+      <div className="space-y-4">
+        {filteredPatients.length > 0 ? (
+          filteredPatients.map(patient => (
+            <Card 
+              key={patient.fileNumber}
+              className="hover:shadow-md hover:border-primary/50 transition-all cursor-pointer"
+              onClick={() => router.push(`/patients/${patient.fileNumber}`)}
+            >
+              <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="bg-secondary p-3 rounded-full">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-lg">{patient.name}</p>
+                    <p className="text-sm text-muted-foreground font-mono">{patient.fileNumber}</p>
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground flex items-center gap-2 self-end sm:self-center">
+                    <Calendar className="h-4 w-4" />
+                    <span>آخر تقرير: {format(patient.createdAt, 'd MMMM yyyy', { locale: arSA })}</span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="text-center py-16 border-2 border-dashed rounded-lg">
+            <FileText className="mx-auto h-12 w-12 text-muted-foreground"/>
+            <h3 className="mt-4 text-lg font-medium">لا توجد نتائج مطابقة</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+                لم يتم العثور على مرضى يطابقون بحثك.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
