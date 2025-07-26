@@ -1,14 +1,14 @@
 {
   "name": "rehab-ai-system",
   "version": "2.0.0",
-  "private": true,
+  "description": "نظام ذكاء اصطناعي للعلاج الطبيعي والتأهيل",
+  "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build --no-lint || echo 'Build completed with warnings'",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
-  },
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
