@@ -1,4 +1,3 @@
-import { OpenAIStreamAdapter, StreamingTextResponse } from "../utils/stream-adapter";
 import OpenAI from "openai";
 import { OpenAIStreamAdapter, StreamingTextResponse } from "../utils/stream-adapter";
 

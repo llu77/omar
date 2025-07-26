@@ -1,5 +1,4 @@
 import { OpenAIStreamAdapter, StreamingTextResponse } from "../utils/stream-adapter";
-import { OpenAIStreamAdapter, StreamingTextResponse } from "../utils/stream-adapter";
 
 'use server';
 
