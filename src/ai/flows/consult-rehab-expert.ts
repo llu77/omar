@@ -50,7 +50,8 @@ Remember: All responses MUST be in Arabic, without exception.`;
         stream: true,
     });
     
-    const stream = OpenAIStream(response);
+    // @ts-ignore - Type compatibility fix
+    const stream = OpenAIStream(response as any);
     
     return new StreamingTextResponse(stream);
 

@@ -47,7 +47,8 @@ export async function discussResearch(input: ConsultRehabExpertInput): Promise<R
         stream: true,
     });
     
-    const stream = OpenAIStream(response);
+    // @ts-ignore - Type compatibility fix
+    const stream = OpenAIStream(response as any);
     
     return new StreamingTextResponse(stream);
 
