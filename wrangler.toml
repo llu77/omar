@@ -1,0 +1,31 @@
+# wrangler.toml for Cloudflare Pages deployment
+name = "wassel-telerehab"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Pages configuration
+pages_build_output_dir = ".vercel/output/static"
+
+# Build configuration
+[build]
+command = "npm run build:cloudflare"
+cwd = "."
+
+# Environment variables for production
+[env.production.vars]
+NODE_ENV = "production"
+
+# You can add more environment variables here or set them in the Cloudflare dashboard
+# OPENAI_API_KEY = "your-api-key-here"  # Set this in Cloudflare dashboard for security
+
+# KV namespaces (uncomment if you need caching)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
+# preview_id = "your-preview-kv-namespace-id"
+
+# D1 database (uncomment if you need a SQL database)
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "wassel-db"
+# database_id = "your-d1-database-id"

@@ -1,18 +1,10 @@
 
 import type { Metadata } from "next";
-import { Tajawal } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import PresenceManager from "@/components/presence-manager";
-
-const tajawal = Tajawal({
-  subsets: ["arabic"],
-  weight: ["400", "500", "700", "800"],
-  variable: "--font-tajawal",
-  display: 'swap',
-});
 
 // Metadata must be exported from a Server Component.
 export const metadata: Metadata = {
@@ -35,8 +27,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={tajawal.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background h-screen flex flex-col">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <head>
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" 
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans antialiased bg-background h-screen flex flex-col" style={{fontFamily: 'Tajawal, Arial, sans-serif'}}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
