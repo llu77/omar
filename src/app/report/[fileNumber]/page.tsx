@@ -1,6 +1,8 @@
 
 "use client";
 
+export const runtime = 'edge';
+
 import { useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuthState } from 'react-firebase-hooks/auth';
